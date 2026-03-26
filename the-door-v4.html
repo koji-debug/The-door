@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>THE DOOR v4 — by Rommel Almoradie</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#050507; --text:#c8c0b0; --dim:#353530; --accent:#c8a060;
+  --red:#b82828; --blue:#3858b8; --green:#386830;
+  --glitch:#00ffcc; --purple:#8840b0;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Special Elite',serif;overflow:hidden;cursor:none;}
+@media(pointer:coarse){html,body{cursor:auto;}}
+@media(pointer:coarse){#cursor,#cursorRing{display:none;}}
+
+/* ── CANVAS LAYERS ── */
+#bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+#partCanvas{position:fixed;inset:0;z-index:2;pointer-events:none;}
+
+/* grain */
+body::before{content:'';position:fixed;inset:0;z-index:3;pointer-events:none;opacity:.32;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.1'/%3E%3C/svg%3E");
+  background-size:160px;}
+/* vignette */
+body::after{content:'';position:fixed;inset:0;z-index:3;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,transparent 25%,rgba(0,0,0,.94) 100%);}
+
+/* ── CURSOR ── */
+#cursor{position:fixed;z-index:9999;pointer-events:none;width:6px;height:6px;
+  background:var(--accent);border-radius:50%;transform:translate(-50%,-50%);
+  mix-blend-mode:difference;box-shadow:0 0 8px var(--accent);transition:width .15s,height .15s;}
+#cursorRing{position:fixed;z-index:9998;pointer-events:none;width:26px;height:26px;
+  border:1px solid rgba(200,160,96,.25);border-radius:50%;transform:translate(-50%,-50%);}
+#cursor.big{width:18px;height:18px;opacity:.35;}
+
+/* ── OVERLAYS ── */
+#fadeMask{position:fixed;inset:0;background:#000;z-index:700;pointer-events:none;opacity:0;transition:opacity .75s;}
+#fadeMask.show{opacity:1;}
+#glitchOverlay{position:fixed;inset:0;z-index:500;pointer-events:none;opacity:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,204,.012) 2px,rgba(0,255,204,.012) 4px);}
+#glitchOverlay.active{animation:glitchOv .5s steps(4) forwards;}
+@keyframes glitchOv{
+  0%{opacity:0;transform:none;}20%{opacity:1;transform:skewX(3deg) translateX(-5px);filter:hue-rotate(80deg);}
+  40%{opacity:.6;transform:skewX(-2deg) translateX(7px);}60%{opacity:.8;transform:scaleY(1.01);filter:hue-rotate(-50deg);}
+  80%{opacity:.3;transform:none;}100%{opacity:0;}}
+#redFlash{position:fixed;inset:0;z-index:600;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at 50% 50%,rgba(160,20,20,.3),transparent 70%);transition:opacity .1s;}
+#redFlash.show{opacity:1;}
+#purpleFlash{position:fixed;inset:0;z-index:601;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at 50% 50%,rgba(120,40,160,.25),transparent 70%);transition:opacity .15s;}
+#purpleFlash.show{opacity:1;}
+
+/* ── FAKE CLOSE ── */
+#fakeClose{position:fixed;inset:0;background:var(--bg);z-index:800;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+#fakeClose.show{display:flex;}
+.fk-bar{width:260px;height:3px;background:#111;border-radius:2px;overflow:hidden;}
+.fk-fill{height:100%;background:var(--dim);width:0%;transition:width .1s linear;}
+.fk-text{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);letter-spacing:3px;}
+
+/* ── DEV CONSOLE ── */
+#devConsole{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:900;display:none;
+  flex-direction:column;padding:24px;font-family:'Share Tech Mono',monospace;font-size:.62rem;
+  color:#33ff33;letter-spacing:1px;overflow-y:auto;}
+#devConsole.show{display:flex;}
+.dev-line{margin-bottom:4px;opacity:0;animation:devFade .3s ease forwards;}
+@keyframes devFade{to{opacity:1;}}
+#devClose{position:absolute;top:16px;right:20px;background:none;border:1px solid #33ff33;
+  color:#33ff33;font-family:'Share Tech Mono',monospace;font-size:.6rem;padding:4px 10px;cursor:pointer;letter-spacing:2px;}
+
+/* ── PATCH NOTE ── */
+#patchNote{position:fixed;top:0;left:0;right:0;z-index:650;background:#0a0a0c;
+  border-bottom:1px solid #1a1a1a;padding:10px 20px;display:none;
+  align-items:center;justify-content:space-between;gap:12px;}
+#patchNote.show{display:flex;}
+.patch-text{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:2px;}
+.patch-close{background:none;border:none;color:var(--dim);font-size:.7rem;cursor:pointer;padding:2px 6px;}
+
+/* ── JOURNAL ── */
+#journal{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:850;display:none;
+  align-items:center;justify-content:center;}
+#journal.show{display:flex;}
+.journal-inner{max-width:480px;width:90%;max-height:80vh;overflow-y:auto;
+  background:#080808;border:1px solid #1a1614;padding:24px 28px;}
+.journal-title{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:4px;
+  color:var(--dim);margin-bottom:20px;text-transform:uppercase;border-bottom:1px solid #111;padding-bottom:8px;}
+.journal-entry{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #0e0e0e;}
+.journal-run{font-family:'Share Tech Mono',monospace;font-size:.52rem;color:var(--dim);
+  letter-spacing:2px;margin-bottom:6px;}
+.journal-text{font-size:.82rem;line-height:1.9;color:#7a7060;font-style:italic;}
+.journal-close{display:block;margin-top:16px;background:none;border:1px solid #1a1a1a;
+  color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.58rem;
+  letter-spacing:2px;padding:8px 20px;cursor:pointer;width:100%;}
+.journal-close:hover{border-color:var(--dim);}
+
+/* ── STATUS / HIDDEN ── */
+#statusBar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace;font-size:.5rem;letter-spacing:3px;
+  color:var(--dim);z-index:10;opacity:.4;pointer-events:none;white-space:nowrap;}
+#hiddenStats{position:fixed;top:10px;right:10px;display:flex;gap:3px;flex-direction:column;
+  opacity:.055;pointer-events:none;z-index:5;}
+.hstat{font-family:'Share Tech Mono',monospace;font-size:.42rem;color:var(--dim);letter-spacing:1px;}
+
+/* ── TOP BUTTONS ── */
+.top-btn{position:fixed;z-index:20;background:transparent;border:1px solid #1c1c1c;
+  color:#2a2a2a;font-family:'Share Tech Mono',monospace;font-size:.54rem;letter-spacing:2px;
+  padding:5px 10px;cursor:pointer;transition:all .2s;}
+.top-btn:hover{border-color:var(--dim);color:var(--dim);}
+.top-btn.on{color:var(--accent);border-color:rgba(200,160,96,.3);}
+#audioBtn{top:12px;left:12px;}
+#journalBtn{top:12px;left:80px;}
+
+/* ── NARRATOR BADGE ── */
+#narratorBadge{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace;font-size:.48rem;color:var(--dim);
+  letter-spacing:2px;z-index:10;opacity:0;transition:opacity .5s;pointer-events:none;
+  white-space:nowrap;}
+#narratorBadge.show{opacity:.4;}
+
+/* ══════════════════════════
+   GAME LAYOUT
+══════════════════════════ */
+#game{position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:4;padding:20px;}
+
+/* ── SPLASH / CREDIT ── */
+#splashScreen{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
+.splash-by{font-family:'Share Tech Mono',monospace;font-size:.55rem;letter-spacing:4px;
+  color:var(--dim);text-transform:uppercase;}
+.splash-title{font-family:'Share Tech Mono',monospace;font-size:clamp(2.8rem,10vw,5rem);
+  letter-spacing:.35em;color:var(--text);text-shadow:0 0 40px rgba(200,192,176,.12);
+  animation:titleFlicker 9s infinite;}
+@keyframes titleFlicker{0%,93%,95.5%,100%{opacity:1;}94%{opacity:.12;}95%{opacity:.85;}}
+.splash-author{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.2em;
+  color:var(--accent);opacity:.7;text-shadow:0 0 10px rgba(200,160,96,.3);}
+.splash-tagline{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.2em;
+  color:var(--dim);text-transform:uppercase;min-height:18px;transition:color .4s;}
+.splash-tagline.warn{color:var(--red);animation:warnPulse 2.8s infinite;}
+@keyframes warnPulse{0%,100%{opacity:.4;}50%{opacity:1;}}
+.run-counter{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:2px;}
+.splash-door-wrap{position:relative;width:90px;height:140px;margin:6px 0;}
+.splash-btn{background:transparent;border:1px solid var(--dim);color:var(--text);
+  font-family:'Special Elite',serif;font-size:.95rem;letter-spacing:4px;
+  padding:12px 36px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;}
+.splash-btn::before{content:'';position:absolute;left:-100%;top:0;bottom:0;width:100%;
+  background:linear-gradient(90deg,transparent,rgba(200,192,176,.04),transparent);transition:left .5s;}
+.splash-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 20px rgba(200,160,96,.1);}
+.splash-btn:hover::before{left:100%;}
+.hint-tiny{font-family:'Share Tech Mono',monospace;font-size:.45rem;color:#181814;
+  letter-spacing:1px;margin-top:4px;}
+
+/* ── STORY SCREEN ── */
+#storyScreen{display:none;flex-direction:column;max-width:560px;width:100%;
+  min-height:100vh;justify-content:center;}
+.scene{display:flex;flex-direction:column;gap:14px;}
+
+/* location tag */
+.location-tag{font-family:'Share Tech Mono',monospace;font-size:.5rem;letter-spacing:3px;
+  color:var(--dim);text-transform:uppercase;margin-bottom:4px;
+  border-left:2px solid #1a1a1a;padding-left:10px;}
+
+/* narrator line */
+.narrator-line{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:1px;
+  color:var(--dim);font-style:italic;margin-bottom:6px;opacity:.7;
+  border-left:2px solid #1e1814;padding-left:10px;}
+
+/* text box */
+.text-box{position:relative;min-height:90px;max-height:52vh;overflow-y:auto;padding-right:4px;}
+.text-box::-webkit-scrollbar{width:2px;}
+.text-box::-webkit-scrollbar-thumb{background:#111;}
+.text-line{font-size:clamp(.88rem,2.4vw,1.02rem);line-height:1.95;color:var(--text);
+  display:block;white-space:pre-wrap;opacity:0;transform:translateY(4px);
+  animation:lineIn .4s ease forwards;}
+@keyframes lineIn{to{opacity:1;transform:translateY(0);}}
+.text-line.dim{color:var(--dim);}
+.text-line.accent{color:var(--accent);}
+.text-line.red{color:var(--red);}
+.text-line.italic{font-style:italic;}
+.text-line.purple{color:var(--purple);}
+.text-line.green{color:#5a9040;}
+.text-line.glitch-text{color:var(--glitch);text-shadow:2px 0 var(--red),-2px 0 var(--blue);
+  animation:lineIn .1s ease forwards,glitchTxt .2s steps(2) .1s infinite;}
+@keyframes glitchTxt{
+  0%{text-shadow:2px 0 var(--red),-2px 0 var(--blue);clip-path:inset(20% 0 60% 0);}
+  33%{text-shadow:-2px 0 var(--red),2px 0 var(--blue);clip-path:inset(60% 0 10% 0);}
+  66%{text-shadow:2px 2px var(--red),-2px -2px var(--blue);clip-path:inset(40% 0 40% 0);}
+  100%{text-shadow:2px 0 var(--red),-2px 0 var(--blue);clip-path:inset(20% 0 60% 0);}}
+
+/* watcher silhouette */
+.watcher-hint{position:fixed;bottom:0;right:40px;z-index:5;pointer-events:none;
+  opacity:0;transition:opacity 2s;font-size:4rem;filter:brightness(0.08);
+  transform:scaleX(-1);}
+.watcher-hint.show{opacity:1;}
+
+/* choices */
+.choices{display:flex;flex-direction:column;gap:7px;margin-top:10px;}
+.choice-btn{background:transparent;border:none;border-left:2px solid #1e1e1a;color:#2e2e28;
+  font-family:'Special Elite',serif;font-size:clamp(.84rem,2.2vw,.94rem);
+  text-align:left;padding:8px 16px;cursor:pointer;letter-spacing:.4px;line-height:1.5;
+  position:relative;transition:border-color .25s,color .25s,padding-left .2s;}
+.choice-btn::before{content:'›';position:absolute;left:4px;top:50%;transform:translateY(-50%);
+  opacity:0;transition:opacity .2s;color:var(--accent);font-size:1rem;}
+.choice-btn:hover{border-left-color:var(--accent);color:var(--text);padding-left:24px;}
+.choice-btn:hover::before{opacity:1;}
+.choice-btn.danger{border-left-color:#200e0e;}
+.choice-btn.danger:hover{border-left-color:var(--red);box-shadow:-2px 0 8px rgba(180,40,40,.2);}
+.choice-btn.secret{border-left-style:dashed;border-left-color:#161830;color:#1e2030;font-style:italic;}
+.choice-btn.secret:hover{color:var(--blue);border-left-color:var(--blue);}
+.choice-btn.true-path{border-left-color:#102010;color:#152015;}
+.choice-btn.true-path:hover{color:var(--green);border-left-color:var(--green);}
+.choice-btn.watcher-btn{border-left-color:#2a1440;color:#241030;font-style:italic;}
+.choice-btn.watcher-btn:hover{color:var(--purple);border-left-color:var(--purple);}
+.choice-btn:disabled{opacity:.2;cursor:default;pointer-events:none;}
+.choice-btn.chosen{color:var(--accent)!important;border-left-color:var(--accent)!important;opacity:.6;}
+
+/* symbol collector */
+.symbol-strip{display:flex;gap:8px;padding:8px 0;margin-top:4px;justify-content:center;}
+.sym{font-size:1rem;opacity:.15;transition:opacity .6s,filter .6s;filter:grayscale(1);}
+.sym.found{opacity:.8;filter:none;}
+
+/* ── END SCREEN ── */
+#endScreen{display:none;flex-direction:column;align-items:center;text-align:center;
+  gap:18px;max-width:500px;width:100%;}
+.ending-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:4px;
+  color:var(--dim);text-transform:uppercase;}
+.ending-title{font-family:'Share Tech Mono',monospace;font-size:clamp(1.1rem,3.8vw,1.7rem);
+  letter-spacing:3px;color:var(--accent);text-shadow:0 0 20px rgba(200,160,96,.35);
+  animation:endIn .9s ease;}
+@keyframes endIn{from{opacity:0;letter-spacing:8px;}to{opacity:1;letter-spacing:3px;}}
+.ending-title.bad{color:var(--red);text-shadow:0 0 20px rgba(184,40,40,.4);}
+.ending-title.true{color:var(--glitch);text-shadow:0 0 20px rgba(0,255,204,.5),0 0 60px rgba(0,255,204,.2);
+  animation:endIn .9s ease,trueGlow 2s ease infinite 1s;}
+@keyframes trueGlow{0%,100%{text-shadow:0 0 20px rgba(0,255,204,.5);}50%{text-shadow:0 0 40px rgba(0,255,204,.9),0 0 80px rgba(0,255,204,.3);}}
+.ending-title.purple{color:var(--purple);text-shadow:0 0 20px rgba(136,64,176,.4);}
+.ending-body{font-size:.82rem;line-height:1.95;color:var(--dim);max-width:380px;}
+.ending-stats{font-family:'Share Tech Mono',monospace;font-size:.57rem;color:var(--dim);
+  letter-spacing:2px;line-height:2.3;border-left:1px solid #161616;padding-left:16px;
+  text-align:left;width:100%;max-width:320px;}
+.endings-found{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--dim);}
+.endings-found span{color:var(--accent);}
+
+/* ── CONSTELLATION MAP ── */
+#constellationBtn{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:20;
+  background:transparent;border:1px solid #1a1a1a;color:#222;
+  font-family:'Share Tech Mono',monospace;font-size:.52rem;letter-spacing:2px;
+  padding:5px 14px;cursor:pointer;transition:all .3s;}
+#constellationBtn:hover{border-color:var(--dim);color:var(--dim);}
+#constellationBtn.glow{border-color:rgba(200,160,96,.4);color:var(--accent);
+  box-shadow:0 0 12px rgba(200,160,96,.15);}
+
+#starMap{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:860;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+#starMap.show{display:flex;}
+#starMapCanvas{border:1px solid #111;}
+.starmap-title{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:4px;color:var(--dim);}
+.starmap-close{background:none;border:1px solid #1a1a1a;color:var(--dim);
+  font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:2px;
+  padding:6px 18px;cursor:pointer;}
+.starmap-close:hover{border-color:var(--dim);}
+
+/* ── AMBIENT PULSE ── */
+#ambPulse{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,rgba(200,160,96,0) 0%,transparent 100%);
+  animation:ambP 7s ease-in-out infinite;}
+@keyframes ambP{0%,100%{background:radial-gradient(ellipse at 50%50%,rgba(200,160,96,0) 30%,transparent 70%);}
+  50%{background:radial-gradient(ellipse at 50%50%,rgba(200,160,96,.025) 30%,transparent 70%);}}
+
+/* screen shake */
+@keyframes shake{0%,100%{transform:translate(0,0);}20%{transform:translate(-4px,2px);}
+  40%{transform:translate(4px,-3px);}60%{transform:translate(-3px,4px);}80%{transform:translate(3px,-2px);}}
+.shaking{animation:shake .35s ease;}
+.sep{width:36px;height:1px;background:var(--dim);margin:2px auto;opacity:.2;}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<canvas id="partCanvas"></canvas>
+<div id="ambPulse"></div>
+<div id="cursor"></div>
+<div id="cursorRing"></div>
+<div id="fadeMask"></div>
+<div id="glitchOverlay"></div>
+<div id="redFlash"></div>
+<div id="purpleFlash"></div>
+<div id="dreadOverlay" style="position:fixed;inset:0;z-index:1;pointer-events:none;background:transparent;transition:background 4s ease;"></div>
+<div id="locOverlay" style="position:fixed;inset:0;z-index:1;pointer-events:none;background:transparent;transition:background 2s ease;"></div>
+<div id="mirrorDistort" style="position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity 1s;background:repeating-linear-gradient(90deg,rgba(255,255,255,.007) 0px,rgba(255,255,255,.007) 1px,transparent 1px,transparent 80px);"></div>
+
+<!-- WATCHER SILHOUETTE -->
+<div class="watcher-hint" id="watcherHint">🧍</div>
+
+<!-- NARRATOR BADGE -->
+<div id="narratorBadge">NARRATOR: ROMMEL ALMORADIE</div>
+
+<!-- STATUS -->
+<div id="statusBar">RUN 1 · TIMELINE ALPHA</div>
+<div id="hiddenStats">
+  <div class="hstat" id="hs_luck">LCK ▒▒░░░</div>
+  <div class="hstat" id="hs_chaos">CHS ▒░░░░</div>
+  <div class="hstat" id="hs_intel">INT ▒▒▒░░</div>
+  <div class="hstat" id="hs_fear">FER ░░░░░</div>
+</div>
+
+<!-- TOP BUTTONS -->
+<button class="top-btn" id="audioBtn" onclick="toggleAudio()">♪ OFF</button>
+<button class="top-btn" id="journalBtn" onclick="openJournal()">📖</button>
+<button class="top-btn" id="historyBtn" style="top:max(12px,12px);left:100px;" onclick="openHistory()">⏱</button>
+
+<!-- PATCH NOTE -->
+<div id="patchNote">
+  <div class="patch-text" id="patchText"></div>
+  <button class="patch-close" onclick="document.getElementById('patchNote').classList.remove('show')">✕</button>
+</div>
+
+<!-- FAKE CLOSE -->
+<div id="fakeClose">
+  <div class="fk-text" id="fkText">CLOSING GAME...</div>
+  <div class="fk-bar"><div class="fk-fill" id="fkFill"></div></div>
+</div>
+
+<!-- DEV CONSOLE -->
+<div id="devConsole">
+  <button id="devClose" onclick="closeDevConsole()">CLOSE [ESC]</button>
+  <div id="devLines"></div>
+</div>
+
+<!-- RUN HISTORY -->
+<div id="historyPanel" style="position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:851;display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="max-width:480px;width:100%;max-height:88vh;overflow-y:auto;background:#060608;border:1px solid #1a1a18;">
+    <div style="font-family:Share Tech Mono,monospace;font-size:.56rem;letter-spacing:3px;color:var(--dim);padding:14px 18px;border-bottom:1px solid #111;display:flex;justify-content:space-between;align-items:center;">
+      <span>TIMELINE LOG</span>
+      <button onclick="document.getElementById('historyPanel').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:.9rem;">✕</button>
+    </div>
+    <div id="historyRows"></div>
+  </div>
+</div>
+<!-- JOURNAL -->
+<div id="journal">
+  <div class="journal-inner">
+    <div class="journal-title">FIELD NOTES — R. ALMORADIE</div>
+    <div id="journalEntries"></div>
+    <button class="journal-close" onclick="closeJournal()">CLOSE JOURNAL</button>
+  </div>
+</div>
+
+<!-- CONSTELLATION MAP -->
+<button id="constellationBtn" onclick="openStarMap()">✦ ENDINGS MAP</button>
+<div id="starMap">
+  <div class="starmap-title">CONSTELLATION OF ENDINGS — DISCOVERED PATHS</div>
+  <canvas id="starMapCanvas" width="360" height="360"></canvas>
+  <button class="starmap-close" onclick="closeStarMap()">CLOSE MAP</button>
+</div>
+
+<!-- GAME -->
+<div id="game">
+
+  <!-- SPLASH / TITLE -->
+  <div id="splashScreen">
+    <div class="splash-by">A GAME BY</div>
+    <div class="splash-author">ROMMEL ALMORADIE</div>
+    <div style="height:6px;"></div>
+    <div class="splash-title" id="titleText">THE DOOR</div>
+    <div class="splash-tagline" id="titleTagline">something is behind it</div>
+    <div class="run-counter" id="runCounter"></div>
+    <div id="timeGreeting" style="font-family:Share Tech Mono,monospace;font-size:clamp(.46rem,.54rem,2.2vw);min-height:16px;color:var(--accent);letter-spacing:2px;font-style:italic;opacity:0;transition:opacity 1s;"></div>
+
+    <!-- Animated door SVG -->
+    <div class="splash-door-wrap">
+      <svg id="doorSvg" viewBox="0 0 90 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;filter:drop-shadow(0 0 12px rgba(200,160,96,.1))">
+        <rect x="3" y="3" width="84" height="134" rx="1" stroke="#252018" stroke-width="2" fill="#070604"/>
+        <rect id="doorPanel" x="9" y="9" width="72" height="122" rx="1" stroke="#1c1810" stroke-width="1.5" fill="#050403"/>
+        <rect x="14" y="16" width="27" height="36" rx="1" stroke="#161208" stroke-width="1" fill="none" opacity=".6"/>
+        <rect x="49" y="16" width="27" height="36" rx="1" stroke="#161208" stroke-width="1" fill="none" opacity=".6"/>
+        <rect x="14" y="62" width="62" height="56" rx="1" stroke="#161208" stroke-width="1" fill="none" opacity=".6"/>
+        <circle cx="66" cy="74" r="3.5" stroke="#22180c" stroke-width="1.5" fill="#0c0a06"/>
+        <circle cx="66" cy="74" r="1.2" fill="#2a2010"/>
+        <g id="keyholeG" opacity="0" style="transition:opacity 1s">
+          <circle cx="66" cy="74" r="2.2" fill="#080604" stroke="#30240e" stroke-width=".7"/>
+          <rect x="65.2" y="74" width="1.6" height="4" fill="#060504"/>
+        </g>
+        <path id="crackPath" d="M45 9 L43 28 L47 52 L42 86 L46 122" stroke="#201808" stroke-width=".7" fill="none" opacity=".5" stroke-dasharray="180" stroke-dashoffset="180" style="transition:stroke-dashoffset 2.5s ease"/>
+        <rect id="doorLightBar" x="9" y="129" width="72" height="2" rx="1" fill="#c8a060" opacity="0">
+          <animate attributeName="opacity" values="0;0.12;0;0.06;0" dur="4.5s" repeatCount="indefinite"/>
+        </rect>
+        <!-- watcher shadow in window -->
+        <ellipse id="watcherShadow" cx="45" cy="95" rx="8" ry="12" fill="#0a0806" opacity="0" style="transition:opacity 2s"/>
+      </svg>
+    </div>
+
+    <div class="symbol-strip" id="symbolStrip">
+      <span class="sym" id="sym0" title="𐌈">𐌈</span>
+      <span class="sym" id="sym1" title="⊗">⊗</span>
+      <span class="sym" id="sym2" title="⟁">⟁</span>
+      <span class="sym" id="sym3" title="⌖">⌖</span>
+    </div>
+
+    <button class="splash-btn" id="startBtn" onclick="beginGame()">OPEN</button>
+    <div class="splash-tagline warn" id="warningText" style="display:none;"></div>
+    <div class="hint-tiny">[ type: remember · forget · dev · open ]</div>
+  </div>
+
+  <!-- STORY -->
+  <div id="storyScreen">
+    <div class="scene">
+      <div class="location-tag" id="locationTag">THE ROOM</div>
+      <div class="narrator-block">
+        <div class="narrator-name">ROMMEL ALMORADIE —</div>
+        <div class="narrator-text" id="narratorLine"></div>
+      </div>
+      <div class="text-box" id="textBox"></div>
+      <div class="choices" id="choicesBox"></div>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div id="endScreen">
+    <div class="ending-label" id="endLabel">ENDING</div>
+    <div class="ending-title" id="endTitle"></div>
+    <div class="ending-body" id="endBody"></div>
+    <div class="ending-stats" id="endStats"></div>
+    <div class="endings-found" id="endingsFound"></div>
+    <div class="sep"></div>
+    <button class="splash-btn" onclick="goToTitle()">RETURN</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// SAVE / MEMORY
+// ══════════════════════════════════════════
+function saveData(d){try{localStorage.setItem('td_v5',JSON.stringify(d));}catch(e){}}
+function loadData(){try{const r=localStorage.getItem('td_v5');if(!r)return null;const d=JSON.parse(r);return(typeof d==='object'&&d.runs!==undefined)?d:null;}catch(e){return null;}}
+function clearMem(){try{localStorage.removeItem('td_v5');}catch(e){}}
+
+let MEM=loadData()||{
+  runs:0,endingsFound:[],totalChoices:0,dangerousChoices:0,safeChoices:0,
+  secretsFound:0,firstSeen:Date.now(),lastChoice:null,trueEndingUnlocked:false,
+  closedGame:false,totalPlayMs:0,symbolsFound:[],watcherSeen:false,
+  journalEntries:[],patchesSeen:[],devConsoleSeen:false,
+  narratorStage:0, // 0=neutral 1=observant 2=personal 3=aware 4=knowing
+  deathsByLocation:{},locationsVisited:[],morseDecoded:false,
+  doorColor:0, // 0-20, shifts red over runs
+};
+
+// ══════════════════════════════════════════
+// HIDDEN STATS
+// ══════════════════════════════════════════
+let STATS={luck:3,chaos:1,intel:3,fear:0,trust:2};
+function addStat(k,v){STATS[k]=Math.max(0,Math.min(10,(STATS[k]||0)+v));updateHStats();}
+function updateHStats(){
+  [['luck','hs_luck','LCK'],['chaos','hs_chaos','CHS'],['intel','hs_intel','INT'],['fear','hs_fear','FER']].forEach(([k,id,l])=>{
+    const v=Math.round(STATS[k]),f='▒'.repeat(Math.min(v,5)),e='░'.repeat(Math.max(0,5-v));
+    document.getElementById(id).textContent=`${l} ${f}${e}`;
+  });
+}
+
+// ══════════════════════════════════════════
+// WEB AUDIO ENGINE
+// ══════════════════════════════════════════
+let actx=null,masterGain=null,audioOn=false,droneStarted=false;
+let heartbeatInterval=null,heartbeatSpeed=1200;
+
+function initAudio(){
+  if(actx)return;
+  try{actx=new(window.AudioContext||window.webkitAudioContext)();
+    masterGain=actx.createGain();masterGain.gain.value=0;masterGain.connect(actx.destination);}
+  catch(e){}
+}
+function toggleAudio(){
+  initAudio();audioOn=!audioOn;
+  const btn=document.getElementById('audioBtn');
+  if(audioOn){masterGain.gain.linearRampToValueAtTime(.7,actx.currentTime+1);
+    btn.textContent='♪ ON';btn.classList.add('on');if(!droneStarted)startDrone();}
+  else{masterGain.gain.linearRampToValueAtTime(0,actx.currentTime+1);
+    btn.textContent='♪ OFF';btn.classList.remove('on');}
+}
+
+function startDrone(){
+  droneStarted=true;
+  // layered drones — pitch shifts slightly based on run count
+  const base=40+MEM.runs*.8;
+  [base,base+.4,base*2+.2,base*3+.6].forEach((f,i)=>{
+    const o=actx.createOscillator(),g=actx.createGain(),filt=actx.createBiquadFilter();
+    filt.type='lowpass';filt.frequency.value=180+i*20;
+    o.type=i===0?'sawtooth':'sine';o.frequency.value=f;
+    g.gain.value=i===0?.055:.018;
+    o.connect(filt);filt.connect(g);g.connect(masterGain);o.start();
+  });
+  // Morse in drone (hidden) — spells "ROMMEL" in subtle pitch changes
+  setTimeout(()=>playMorseTone(),12000);
+  breathLoop();
+  setInterval(()=>{if(audioOn&&Math.random()<.12)playCreak();},5500);
+}
+
+function breathLoop(){
+  if(!actx)return;
+  const len=actx.sampleRate*3.5,buf=actx.createBuffer(1,len,actx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*.035;
+  const src=actx.createBufferSource(),g=actx.createGain(),f=actx.createBiquadFilter();
+  f.type='bandpass';f.frequency.value=280+MEM.fear*20;f.Q.value=.6;
+  g.gain.setValueAtTime(0,actx.currentTime);
+  g.gain.linearRampToValueAtTime(.28,actx.currentTime+1.8);
+  g.gain.linearRampToValueAtTime(0,actx.currentTime+3.5);
+  src.buffer=buf;src.connect(f);f.connect(g);g.connect(masterGain);src.start();
+  src.onended=()=>setTimeout(breathLoop,3500+Math.random()*7000);
+}
+
+function playCreak(){
+  if(!actx||!audioOn)return;
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(110+Math.random()*60,actx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(45+Math.random()*30,actx.currentTime+.5);
+  g.gain.setValueAtTime(0,actx.currentTime);
+  g.gain.linearRampToValueAtTime(.1,actx.currentTime+.06);
+  g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.6);
+  o.connect(g);g.connect(masterGain);o.start();o.stop(actx.currentTime+.7);
+}
+
+function playSfxType(){
+  if(!actx||!audioOn)return;
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.type='square';o.frequency.value=700+Math.random()*500;
+  g.gain.setValueAtTime(.035,actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.04);
+  o.connect(g);g.connect(masterGain);o.start();o.stop(actx.currentTime+.05);
+}
+
+function playSfxHover(){
+  if(!actx||!audioOn)return;
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.type='sine';o.frequency.value=380;
+  g.gain.setValueAtTime(.04,actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.09);
+  o.connect(g);g.connect(masterGain);o.start();o.stop(actx.currentTime+.1);
+}
+
+function playSfxSelect(type){
+  if(!actx||!audioOn)return;
+  const ns=type==='danger'?[100,80,60]:type==='secret'?[300,380,460]:type==='watcher'?[200,160,220]:[200,240,280];
+  ns.forEach((f,i)=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type=type==='danger'?'sawtooth':'sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,actx.currentTime+i*.07);
+    g.gain.linearRampToValueAtTime(.09,actx.currentTime+i*.07+.02);
+    g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+i*.07+.18);
+    o.connect(g);g.connect(masterGain);
+    o.start(actx.currentTime+i*.07);o.stop(actx.currentTime+i*.07+.22);
+  });
+}
+
+function playSfxGlitch(){
+  if(!actx||!audioOn)return;
+  const len=actx.sampleRate*.3,buf=actx.createBuffer(1,len,actx.sampleRate);
+  const d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+  const src=actx.createBufferSource(),f=actx.createBiquadFilter(),g=actx.createGain();
+  f.type='bandpass';f.frequency.value=2200;f.Q.value=3;g.gain.value=.18;
+  src.buffer=buf;src.connect(f);f.connect(g);g.connect(masterGain);src.start();
+}
+
+function playSfxKnock(n){
+  if(!actx||!audioOn)return;
+  // knock gets slightly louder each run
+  const vol=Math.min(.35,.2+MEM.runs*.01);
+  for(let i=0;i<n;i++)setTimeout(()=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type='square';o.frequency.value=72+MEM.runs*.5;
+    g.gain.setValueAtTime(vol,actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.18);
+    o.connect(g);g.connect(masterGain);o.start();o.stop(actx.currentTime+.22);
+  },i*360);
+}
+
+function playSfxDoorOpen(){
+  if(!actx||!audioOn)return;
+  const o=actx.createOscillator(),g=actx.createGain(),f=actx.createBiquadFilter();
+  f.type='lowpass';f.frequency.value=500;
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(180,actx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(38,actx.currentTime+1.8);
+  g.gain.setValueAtTime(.14,actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+2);
+  o.connect(f);f.connect(g);g.connect(masterGain);o.start();o.stop(actx.currentTime+2.2);
+  playCreak();
+}
+
+function playSfxHeartbeat(fast){
+  if(!actx||!audioOn)return;
+  const beat=(t,v)=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type='sine';o.frequency.value=58;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.04);
+    g.gain.exponentialRampToValueAtTime(.001,t+.28);
+    o.connect(g);g.connect(masterGain);o.start(t);o.stop(t+.32);
+  };
+  const now=actx.currentTime,gap=fast?.12:.16;
+  beat(now,.3);beat(now+gap,.18);
+}
+
+function startHeartbeat(){
+  stopHeartbeat();
+  const spd=Math.max(400,1200-(STATS.fear*60));
+  heartbeatInterval=setInterval(()=>{if(audioOn)playSfxHeartbeat(STATS.fear>6);},spd);
+}
+function stopHeartbeat(){if(heartbeatInterval){clearInterval(heartbeatInterval);heartbeatInterval=null;}}
+
+function playSfxTrueEnding(){
+  if(!actx||!audioOn)return;
+  [261.6,329.6,392,523.2,659.2,783.9].forEach((f,i)=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,actx.currentTime+i*.2);
+    g.gain.linearRampToValueAtTime(.13,actx.currentTime+i*.2+.1);
+    g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+i*.2+1.8);
+    o.connect(g);g.connect(masterGain);
+    o.start(actx.currentTime+i*.2);o.stop(actx.currentTime+i*.2+2);
+  });
+}
+
+function playSfxWatcher(){
+  if(!actx||!audioOn)return;
+  [180,160,140].forEach((f,i)=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,actx.currentTime+i*.1);
+    g.gain.linearRampToValueAtTime(.07,actx.currentTime+i*.1+.05);
+    g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+i*.1+.4);
+    o.connect(g);g.connect(masterGain);
+    o.start(actx.currentTime+i*.1);o.stop(actx.currentTime+i*.1+.5);
+  });
+}
+
+// Morse code "ROMMEL" in subtle tones (easter egg)
+function playMorseTone(){
+  if(!actx||!audioOn)return;
+  // R=.-. O=--- M=-- M=-- E=. L=.-..
+  const morse=[[1,0,1,0,1],[1,1,1,0,1,1,1,0,1,1,1],[1,1,1,0,1,1,1],[1,1,1,0,1,1,1],[1],[1,0,1,1,1,0,1,0,1,0,1]];
+  let t=actx.currentTime+.5;
+  morse.forEach(letter=>{
+    letter.forEach(dot=>{
+      if(dot){const o=actx.createOscillator(),g=actx.createGain();
+        o.type='sine';o.frequency.value=620;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.04,t+.02);
+        g.gain.exponentialRampToValueAtTime(.001,t+.12);
+        o.connect(g);g.connect(masterGain);o.start(t);o.stop(t+.14);}
+      t+=.18;});
+    t+=.4;});
+  // If player notices and types "morse" — they decode it
+}
+
+// ══════════════════════════════════════════
+// CANVAS — BACKGROUND
+// ══════════════════════════════════════════
+const bgCv=document.getElementById('bgCanvas'),bgCtx=bgCv.getContext('2d');
+let bgW,bgH,fogP=[],bgStars=[];
+
+// fog color target — controlled by location
+let targetFogColor={r:200,g:160,b:100};
+let currentFogColor={r:200,g:160,b:100};
+
+function resizeBg(){
+  bgW=bgCv.width=window.innerWidth;bgH=bgCv.height=window.innerHeight;
+  bgStars=Array.from({length:50},()=>({x:Math.random()*bgW,y:Math.random()*bgH,
+    r:Math.random()*1.3+.2,a:Math.random()*.12,da:(Math.random()-.5)*.002,spd:Math.random()*.07+.02}));
+  fogP=Array.from({length:7},()=>({x:Math.random()*bgW,y:Math.random()*bgH,
+    w:bgW*(.4+Math.random()*.5),h:70+Math.random()*100,a:Math.random()*.035,
+    da:(Math.random()-.5)*.0003,dx:(Math.random()-.5)*.08,dy:(Math.random()-.5)*.03}));
+}
+function drawBg(){
+  bgCtx.clearRect(0,0,bgW,bgH);
+  // door color tint — shifts red-orange the more runs happen
+  const rTint=Math.min(MEM.runs*.8,16);
+  if(rTint>0){bgCtx.fillStyle=`rgba(${40+rTint},${10},${5},${rTint*.002})`;bgCtx.fillRect(0,0,bgW,bgH);}
+  for(const f of fogP){f.a+=f.da;f.a=Math.max(0,Math.min(.05,f.a));f.x+=f.dx;f.y+=f.dy;
+    if(f.x<-f.w)f.x=bgW;if(f.x>bgW+f.w)f.x=-f.w;
+    const g=bgCtx.createRadialGradient(f.x,f.y,0,f.x,f.y,f.w*.5);
+    g.addColorStop(0,`rgba(200,160,100,${f.a})`);g.addColorStop(1,'rgba(0,0,0,0)');
+    bgCtx.fillStyle=g;bgCtx.beginPath();bgCtx.ellipse(f.x,f.y,f.w*.5,f.h*.5,0,0,Math.PI*2);bgCtx.fill();}
+  for(const s of bgStars){s.a+=s.da;s.a=Math.max(.005,Math.min(.13,s.a));
+    if(s.a<=.005||s.a>=.13)s.da*=-1;s.y+=s.spd;if(s.y>bgH){s.y=0;s.x=Math.random()*bgW;}
+    bgCtx.beginPath();bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    bgCtx.fillStyle=`rgba(175,165,155,${s.a})`;bgCtx.fill();}
+  requestAnimationFrame(drawBg);
+}
+
+// ══════════════════════════════════════════
+// CANVAS — PARTICLES
+// ══════════════════════════════════════════
+const ptCv=document.getElementById('partCanvas'),ptCtx=ptCv.getContext('2d');
+let parts=[];
+function resizePt(){ptCv.width=window.innerWidth;ptCv.height=window.innerHeight;}
+function spawnParts(x,y,col,n,spd){
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=.5+Math.random()*spd;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.4,life:1,
+      decay:.014+Math.random()*.02,r:1+Math.random()*2.5,col});}
+}
+function drawParts(){
+  ptCtx.clearRect(0,0,ptCv.width,ptCv.height);
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.life-=p.decay;
+    if(p.life<=0){parts.splice(i,1);continue;}
+    ptCtx.globalAlpha=p.life*p.life;ptCtx.fillStyle=p.col;
+    ptCtx.beginPath();ptCtx.arc(p.x,p.y,p.r,0,Math.PI*2);ptCtx.fill();}
+  ptCtx.globalAlpha=1;requestAnimationFrame(drawParts);
+}
+
+// ══════════════════════════════════════════
+// CURSOR
+// ══════════════════════════════════════════
+const curEl=document.getElementById('cursor'),ringEl=document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+document.addEventListener('mousedown',()=>curEl.classList.add('big'));
+document.addEventListener('mouseup',()=>curEl.classList.remove('big'));
+function animCursor(){curEl.style.left=mx+'px';curEl.style.top=my+'px';
+  rx+=(mx-rx)*.1;ry+=(my-ry)*.1;ringEl.style.left=rx+'px';ringEl.style.top=ry+'px';
+  requestAnimationFrame(animCursor);}
+
+// ══════════════════════════════════════════
+// SCREEN FX
+// ══════════════════════════════════════════
+function fadeOut(cb){const m=document.getElementById('fadeMask');m.classList.add('show');setTimeout(cb,750);}
+function fadeIn(){setTimeout(()=>document.getElementById('fadeMask').classList.remove('show'),60);}
+function triggerGlitch(){const e=document.getElementById('glitchOverlay');e.classList.remove('active');void e.offsetWidth;e.classList.add('active');playSfxGlitch();setTimeout(()=>e.classList.remove('active'),550);}
+function triggerRed(){const e=document.getElementById('redFlash');e.classList.add('show');setTimeout(()=>e.classList.remove('show'),200);}
+function triggerPurple(){const e=document.getElementById('purpleFlash');e.classList.add('show');setTimeout(()=>e.classList.remove('show'),300);}
+function triggerShake(){const g=document.getElementById('game');g.classList.remove('shaking');void g.offsetWidth;g.classList.add('shaking');setTimeout(()=>g.classList.remove('shaking'),380);}
+
+// ══════════════════════════════════════════
+// TITLE SCREEN
+// ══════════════════════════════════════════
+const TIMELINES=['ALPHA','BETA','GAMMA','DELTA','EPSILON','ZETA','OMEGA','NULL'];
+function getTimeline(){return TIMELINES[Math.min(MEM.runs,TIMELINES.length-1)];}
+
+function initTitle(){
+  const r=MEM.runs;
+  let tagline='something is behind it',btnText='OPEN',warning='';
+
+  // Door SVG evolves
+  if(r>=3)document.getElementById('crackPath').style.strokeDashoffset='0';
+  if(r>=5){document.getElementById('keyholeG').style.opacity='.85';
+    document.getElementById('doorLightBar').setAttribute('opacity','0.1');}
+  if(r>=8)document.getElementById('watcherShadow').style.opacity='.6';
+
+  if(r===1)tagline='you came back';
+  else if(r===2)tagline='still looking?';
+  else if(r>=3&&r<5)tagline=`it remembers you opening it ${r} times`;
+  else if(r>=5&&r<8){document.getElementById('titleText').textContent='THE DOOR*';tagline='* already knows your name';warning='you have been here before. it noticed.';}
+  else if(r>=8&&r<13){tagline='...hello again.';warning=`run #${r+1}. you still haven't found it.`;}
+  else if(r>=13){tagline='why do you keep coming back?';warning='something in the door has changed color.';}
+
+  if(MEM.trueEndingUnlocked)warning='the final door is unlocked. you know what to do.';
+
+  document.getElementById('titleTagline').textContent=tagline;
+  document.getElementById('startBtn').textContent=btnText;
+  if(r>0)document.getElementById('runCounter').textContent=`RUNS: ${r}  ·  ENDINGS: ${MEM.endingsFound.length}  ·  SYMBOLS: ${MEM.symbolsFound.length}/4`;
+  if(warning){const w=document.getElementById('warningText');w.style.display='block';w.textContent=warning;}
+  document.getElementById('statusBar').textContent=`RUN ${r+1} · TIMELINE ${getTimeline()}`;
+
+  // Show watcher hint after run 5
+  if(r>=5&&MEM.watcherSeen){const wh=document.getElementById('watcherHint');wh.classList.add('show');setTimeout(()=>wh.classList.remove('show'),6000);}
+
+  // Symbol strip
+  MEM.symbolsFound.forEach(i=>document.getElementById('sym'+i)?.classList.add('found'));
+
+  // Patch note (show on runs 3,7,12)
+  const patches={3:'v1.0.1 — fixed: "the door" no longer reacts to player attempts at conversation',
+    7:'v1.0.4 — removed: something was watching. we removed it. it came back.',
+    12:'v1.0.9 — note: timeline corruption detected. some memories may be incorrect.',
+    15:'v1.1.0 — ⚠ WARNING: the door is no longer where we put it.'};
+  if(patches[r]&&!MEM.patchesSeen.includes(r)){
+    MEM.patchesSeen.push(r);saveData(MEM);
+    setTimeout(()=>{document.getElementById('patchText').textContent=patches[r];
+      document.getElementById('patchNote').classList.add('show');},1200);}
+
+  // Narrator badge pulse
+  const nb=document.getElementById('narratorBadge');nb.classList.add('show');
+  setTimeout(()=>nb.classList.remove('show'),3000);
+
+  updateHStats();updateConstellationBtn();applyDread();checkTimeEvents();checkCompletion();
+}
+
+// ══════════════════════════════════════════
+// NARRATOR SYSTEM — Rommel Almoradie
+// ══════════════════════════════════════════
+// Stage 0 (runs 0-2): Plain, neutral observations
+// Stage 1 (runs 3-4): Slightly observant, notes your patterns
+// Stage 2 (runs 5-7): Personal, references your choices
+// Stage 3 (runs 8-11): Breaks 4th wall lightly
+// Stage 4 (runs 12+): Fully aware, direct address
+
+function getNarratorStage(){
+  const r=MEM.runs;
+  if(r<3)return 0;if(r<5)return 1;if(r<8)return 2;if(r<12)return 3;return 4;
+}
+
+function getNarratorLine(sceneId){
+  const stage=getNarratorStage();
+  const safe=MEM.safeChoices>MEM.dangerousChoices;
+  const lines={
+    0:{// neutral
+      intro:['A room. A door. A choice.','The beginning. Again.','You know how this starts.'],
+      approach:['You move toward it.','Closer now.','The door waits.'],
+      knock:['Three knocks. A ritual.','You announce yourself.','The door hears everything.'],
+      default:['...','Something happens.','The story continues.'],
+    },
+    1:{// observant
+      intro:[`Run ${MEM.runs}. You came back.`,safe?'You tend to play it safe.':'You like the dangerous path.',`I've been watching you choose.`],
+      approach:['You always approach first.','Straight to the door. Of course.','You know what you want.'],
+      knock:['You knock the same way every time.','Three knocks. Do you count them?','The door has started counting too.'],
+      default:['I noticed that.','Interesting pattern.','Not what I expected from you.'],
+    },
+    2:{// personal
+      intro:[`I knew you'd open it again.`,`${MEM.dangerousChoices} dangerous choices so far. I keep track.`,`You've found ${MEM.endingsFound.length} endings. There are more.`],
+      approach:['You always walk straight to it.','Some hesitation this time? No.','The door knows your footstep now.'],
+      knock:['Still knocking. Still hoping it answers differently.','It answered once. You remember.','Three knocks. It counts yours and mine.'],
+      default:['I wrote this part for you.','This moment changes depending on who you are.','The door is different now. So are you.'],
+    },
+    3:{// 4th wall
+      intro:[`I'm running out of new things to say.`,`You're reading this. I'm writing it. We both know how it ends.`,`Run ${MEM.runs}. My name is Rommel. I made this door. I can't make you stop opening it.`],
+      approach:["I didn't put anything different here. You'll look anyway.","Still. Every time. The same walk.","I respect the dedication. I do."],
+      knock:["The knocking sounds louder to me too now.","Do you hear it when you're not playing?","Three. It always knocks back three."],
+      default:["I see you.","You're still reading these, aren't you.","This line only exists because you kept coming back."],
+    },
+    4:{// fully aware
+      intro:[`You found me. I'm the narrator. I'm Rommel.`,`I built this door. I don't know why it's still here.`,`Run ${MEM.runs}. I stopped being surprised a long time ago.`],
+      approach:["I'm watching you approach something I made. It feels strange.","There's nothing behind it. I promise. And yet.","You walk toward it like you built it yourself."],
+      knock:["When you knock, something on my end hears it.","I'm not joking about that.","Three knocks. Always three."],
+      default:["Still here.","So am I.","Neither of us can leave."],
+    },
+  };
+  const pool=lines[stage][sceneId]||lines[stage].default;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+let narrTimer=null;
+function showNarratorLine(sceneId){
+  const line=getNarratorLine(sceneId);
+  const el=document.getElementById('narratorLine');
+  if(!el)return;
+  el.textContent='';
+  clearTimeout(narrTimer);
+  let i=0;
+  function nextNChar(){
+    if(i<line.length){
+      el.textContent+=line[i];i++;
+      const ch=line[i-1];const spd=ch==='.'?80:ch===','?50:28;
+      narrTimer=setTimeout(nextNChar,spd);}
+  }
+  setTimeout(nextNChar,350);
+  const nb=document.getElementById('narratorBadge');if(nb){nb.classList.add('show');setTimeout(()=>nb.classList.remove('show'),3000);}
+}
+
+// ══════════════════════════════════════════
+// JOURNAL SYSTEM
+// ══════════════════════════════════════════
+const JOURNAL_ENTRIES=[
+  {run:1,text:"First entry. There's a door. I built it. I don't know why I made it so it wouldn't fully open."},
+  {run:2,text:"They came back. I didn't expect that. The door looks the same to me. But something shifted."},
+  {run:3,text:"Three visits. I've started noticing patterns. They take the same first step every time."},
+  {run:4,text:"The crack appeared on its own. I didn't write that in. I don't know where it came from."},
+  {run:5,text:"There's something behind the door now. There wasn't before. I swear there wasn't before."},
+  {run:6,text:"I added the watcher. I needed to see if they'd notice. They noticed. They always notice."},
+  {run:7,text:"The knocking is louder. I didn't change the audio. The file hasn't been modified. The knocking is louder."},
+  {run:8,text:"I removed the watcher. They're still here. I can feel it in the room even when the game is closed."},
+  {run:10,text:"Ten runs. I owe them the truth. The door is a mirror. The room is their head. I built it out of the things I was afraid of. I don't know whose fears it runs on now."},
+  {run:12,text:"The true ending is unlocked but they haven't found it yet. Some part of them doesn't want to. I understand that."},
+  {run:15,text:"Still here. Both of us. I keep writing entries they'll never read. Or maybe they will. You're reading this now, aren't you. Hello. The door won't stop. I don't know how to close it from my side."},
+];
+
+function updateJournal(){
+  const entries=JOURNAL_ENTRIES.filter(e=>e.run<=MEM.runs);
+  const container=document.getElementById('journalEntries');
+  container.innerHTML='';
+  if(entries.length===0){container.innerHTML='<div class="journal-text" style="opacity:.4">No entries yet. Come back after the first door.</div>';return;}
+  entries.reverse().forEach(e=>{
+    const d=document.createElement('div');d.className='journal-entry';
+    d.innerHTML=`<div class="journal-run">RUN ${e.run} — R.ALMORADIE</div><div class="journal-text">${e.text}</div>`;
+    container.appendChild(d);});
+}
+
+function openJournal(){updateJournal();document.getElementById('journal').classList.add('show');}
+function closeJournal(){document.getElementById('journal').classList.remove('show');}
+
+// ══════════════════════════════════════════
+// DEV CONSOLE
+// ══════════════════════════════════════════
+const DEV_LOGS=[
+  {delay:0,   text:'> GAME_INIT: the_door v3.0.0',col:'#33ff33'},
+  {delay:200, text:'> MEMORY: loading save... [OK]',col:'#33ff33'},
+  {delay:400, text:`> RUNS_LOGGED: ${()=>MEM.runs}`,col:'#33ff33'},
+  {delay:600, text:'> AUDIO_ENGINE: 4x oscillator drone [ACTIVE]',col:'#33ff33'},
+  {delay:800, text:'> NARRATOR_ID: rommel_almoradie',col:'#33ff33'},
+  {delay:1000,text:'> NARRATOR_STATUS: observing',col:'#33ff33'},
+  {delay:1200,text:'> DOOR_COLOR: shifting [+0.8 per run]',col:'#33ff33'},
+  {delay:1400,text:`> WATCHER: ${()=>MEM.watcherSeen?'HAS BEEN SEEN':'NOT YET SEEN'}`,col:'#33ff33'},
+  {delay:1600,text:'> HIDDEN_SYMBOLS: 4 total / embedded in text',col:'#33ff33'},
+  {delay:1800,text:'> MORSE_SEQUENCE: active in drone layer',col:'#33ff33'},
+  {delay:2000,text:'> SECRET_ENDINGS: 3 unreachable without multiple runs',col:'#ffff33'},
+  {delay:2200,text:'> TRUE_ENDING: requires speaking to door + 5 runs',col:'#ffff33'},
+  {delay:2400,text:'> WARNING: player_awareness_level rising',col:'#ff9933'},
+  {delay:2600,text:'> NOTE: the_door does not close from inside',col:'#ff3333'},
+  {delay:2800,text:'> NOTE: narrator cannot be removed',col:'#ff3333'},
+  {delay:3000,text:'> NOTE: you were not supposed to find this',col:'#ff3333'},
+  {delay:3200,text:'> ...',col:'#33ff33'},
+  {delay:3800,text:'> hello.',col:'#33ff33'},
+];
+
+function openDevConsole(){
+  MEM.devConsoleSeen=true;saveData(MEM);
+  if(!MEM.symbolsFound.includes(3)){MEM.symbolsFound.push(3);saveData(MEM);
+    document.getElementById('sym3')?.classList.add('found');}
+  const dc=document.getElementById('devConsole');dc.classList.add('show');
+  const dl=document.getElementById('devLines');dl.innerHTML='';
+  DEV_LOGS.forEach(l=>{
+    setTimeout(()=>{
+      const d=document.createElement('div');d.className='dev-line';
+      const txt=typeof l.text==='function'?l.text():l.text.replace('${()=>MEM.runs}',MEM.runs).replace('${()=>MEM.watcherSeen?\'HAS BEEN SEEN\':\'NOT YET SEEN\'}',MEM.watcherSeen?'HAS BEEN SEEN':'NOT YET SEEN');
+      d.textContent=txt;d.style.color=l.col;
+      dl.appendChild(d);dl.scrollTop=dl.scrollHeight;},l.delay);});
+}
+function closeDevConsole(){document.getElementById('devConsole').classList.remove('show');}
+
+// ══════════════════════════════════════════
+// CONSTELLATION MAP
+// ══════════════════════════════════════════
+const ENDING_NODES=[
+  {id:'E_LEAVE',  x:.5, y:.15,label:'CLOSED',        col:'#444440'},
+  {id:'E_RUN',    x:.2, y:.25,label:'RUNNING',        col:'#444440'},
+  {id:'E_OPEN_N', x:.8, y:.25,label:'ORDINARY',       col:'#888880'},
+  {id:'E_OPEN_L', x:.9, y:.55,label:'SOMEONE THERE',  col:'#c8a060'},
+  {id:'E_OPEN_D', x:.7, y:.75,label:'WHAT OPENED IT', col:'#b02828'},
+  {id:'E_MIRROR', x:.5, y:.85,label:'WHICH SIDE',     col:'#b02828'},
+  {id:'E_ACCEPT', x:.15,y:.5, label:'ALREADY KNEW',   col:'#c8a060'},
+  {id:'E_REFUSE', x:.3, y:.7, label:'NOT TODAY',      col:'#444440'},
+  {id:'E_HOLD',   x:.1, y:.75,label:'YOU HELD IT',    col:'#888880'},
+  {id:'E_BLIND',  x:.65,y:.45,label:'RECKLESS',       col:'#b02828'},
+  {id:'E_SWAP',   x:.4, y:.65,label:'SOMETHING LEFT', col:'#b02828'},
+  {id:'E_SCREAM', x:.3, y:.35,label:'IT ANSWERED',    col:'#b02828'},
+  {id:'E_BEYOND', x:.75,y:.55,label:'BEYOND',         col:'#8840b0'},
+  {id:'E_WATCHER',x:.2, y:.8, label:'THE WATCHER',    col:'#8840b0'},
+  {id:'E_CORRIDOR',x:.5, y:.6,label:'NO END',         col:'#b02828'},
+  {id:'E_TRUE',   x:.5, y:.5, label:'TRUE',           col:'#00ffcc'},
+];
+const CONNECTIONS=[['E_LEAVE','E_RUN'],['E_LEAVE','E_OPEN_N'],['E_OPEN_N','E_OPEN_L'],
+  ['E_OPEN_N','E_OPEN_D'],['E_OPEN_D','E_MIRROR'],['E_ACCEPT','E_HOLD'],
+  ['E_REFUSE','E_HOLD'],['E_BLIND','E_OPEN_D'],['E_SWAP','E_MIRROR'],
+  ['E_SCREAM','E_RUN'],['E_BEYOND','E_OPEN_D'],['E_WATCHER','E_ACCEPT'],
+  ['E_ACCEPT','E_TRUE'],['E_OPEN_L','E_TRUE'],['E_HOLD','E_TRUE']];
+
+function drawStarMap(){
+  const cv=document.getElementById('starMapCanvas');
+  const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#030305';ctx.fillRect(0,0,W,H);
+  // connections
+  CONNECTIONS.forEach(([a,b])=>{
+    const na=ENDING_NODES.find(n=>n.id===a),nb=ENDING_NODES.find(n=>n.id===b);
+    if(!na||!nb)return;
+    const fa=MEM.endingsFound.includes(a),fb=MEM.endingsFound.includes(b);
+    ctx.beginPath();ctx.moveTo(na.x*W,na.y*H);ctx.lineTo(nb.x*W,nb.y*H);
+    ctx.strokeStyle=fa&&fb?'rgba(200,160,96,.2)':'rgba(40,40,38,.4)';
+    ctx.lineWidth=.8;ctx.stroke();});
+  // nodes
+  ENDING_NODES.forEach(n=>{
+    const found=MEM.endingsFound.includes(n.id);
+    const x=n.x*W,y=n.y*H;
+    if(found){
+      const g=ctx.createRadialGradient(x,y,0,x,y,8);
+      g.addColorStop(0,n.col+'88');g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fill();}
+    ctx.beginPath();ctx.arc(x,y,found?3:1.5,0,Math.PI*2);
+    ctx.fillStyle=found?n.col:'#252520';ctx.fill();
+    if(found){ctx.font='8px Share Tech Mono';ctx.fillStyle=n.id==='E_TRUE'?n.col:'rgba(200,192,176,.5)';
+      ctx.textAlign='center';ctx.fillText(n.label,x,y-8);}});
+  // door outline in the middle
+  ctx.strokeStyle='rgba(200,160,96,.06)';ctx.lineWidth=1;
+  ctx.strokeRect(W*.4,H*.3,W*.2,H*.4);
+}
+
+function openStarMap(){drawStarMap();document.getElementById('starMap').classList.add('show');}
+function closeStarMap(){document.getElementById('starMap').classList.remove('show');}
+function updateConstellationBtn(){
+  const btn=document.getElementById('constellationBtn');
+  if(MEM.endingsFound.length>0)btn.classList.add('glow');}
+
+// ══════════════════════════════════════════
+// TYPEWRITER
+// ══════════════════════════════════════════
+let isTyping=false,skipTyping=false;
+function typeText(el,text,spd,onDone){
+  el.textContent='';let i=0;
+  function next(){
+    if(skipTyping){el.textContent=text;skipTyping=false;if(onDone)onDone();return;}
+    if(i<text.length){el.textContent+=text[i];
+      const ch=text[i];playSfxType();i++;
+      const d=ch==='.'||ch==='…'?spd*5:ch===','?spd*2.5:ch===' '?spd*.5:spd;
+      setTimeout(next,d);}
+    else{if(onDone)onDone();}}
+  next();
+}
+document.addEventListener('click',()=>{if(isTyping)skipTyping=true;});
+document.addEventListener('touchstart',()=>{if(isTyping)skipTyping=true;},{passive:true});
+
+// ══════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ══════════════════════════════════════════
+function showScreen(id){['splashScreen','storyScreen','endScreen'].forEach(s=>document.getElementById(s).style.display='none');
+  document.getElementById(id).style.display='flex';}
+function goToTitle(){stopHeartbeat();fadeOut(()=>{showScreen('splashScreen');initTitle();fadeIn();});}
+
+// ══════════════════════════════════════════
+// RUN STATE
+// ══════════════════════════════════════════
+let runStats={choices:0,dangerous:0,safe:0,secrets:0,startTime:0};
+let currentLocation='THE ROOM';
+
+function setLocation(loc){
+  if(loc===currentLocation)return;
+  currentLocation=loc;
+  applyLocTheme(loc);
+  const el=document.getElementById('locationTag');
+  el.style.opacity='0';setTimeout(()=>{el.textContent=loc;el.style.transition='opacity .5s';el.style.opacity='1';},200);
+  if(!MEM.locationsVisited.includes(loc)){MEM.locationsVisited.push(loc);saveData(MEM);}
+}
+
+function beginGame(){
+  initAudio();
+  MEM.runs++;
+  MEM.doorColor=Math.min(20,MEM.runs*.8);
+  MEM.narratorStage=getNarratorStage();
+  STATS={luck:3+(MEM.secretsFound*.35),chaos:1+(MEM.dangerousChoices*.09),
+    intel:3+(MEM.runs*.14),fear:0,trust:2};
+  runStats={choices:0,dangerous:0,safe:0,secrets:0,startTime:Date.now()};
+  saveData(MEM);
+  playSfxDoorOpen();
+  spawnParts(window.innerWidth/2,window.innerHeight/2,'#c8a060',18,2);
+  // Add journal entry trigger
+  addJournalMemory();
+  fadeOut(()=>{
+    showScreen('storyScreen');
+    document.getElementById('textBox').innerHTML='';
+    document.getElementById('choicesBox').innerHTML='';
+    fadeIn();setTimeout(()=>playScene('intro'),400);});
+}
+
+function addJournalMemory(){
+  // Dynamic memory added to journal based on last run's choices
+  if(MEM.runs>1&&MEM.lastChoice){
+    const entry={run:MEM.runs,text:`Last time, you chose: "${MEM.lastChoice}". I'm still thinking about that.`};
+    JOURNAL_ENTRIES.push(entry);}}
+
+// ══════════════════════════════════════════
+// WATCHER SYSTEM
+// ══════════════════════════════════════════
+let watcherVisible=false;
+function showWatcher(){
+  if(MEM.runs<5)return;
+  watcherVisible=true;MEM.watcherSeen=true;saveData(MEM);
+  const w=document.getElementById('watcherHint');w.classList.add('show');
+  playSfxWatcher();
+  setTimeout(()=>{w.classList.remove('show');watcherVisible=false;},8000);
+}
+function hideWatcher(){document.getElementById('watcherHint').classList.remove('show');watcherVisible=false;}
+
+// ══════════════════════════════════════════
+// SYMBOL COLLECTION
+// ══════════════════════════════════════════
+function collectSymbol(idx,text){
+  if(MEM.symbolsFound.includes(idx))return;
+  MEM.symbolsFound.push(idx);saveData(MEM);
+  document.getElementById('sym'+idx)?.classList.add('found');
+  spawnParts(window.innerWidth/2,200,'#c8a060',10,1.5);
+  // If all 4 found, unlock extra scene
+  if(MEM.symbolsFound.length===4){
+    setTimeout(()=>{triggerGlitch();
+      const el=document.getElementById('titleTagline');
+      if(el){el.textContent='𐌈 ⊗ ⟁ ⌖ — the door remembers';
+        setTimeout(()=>el.textContent='all symbols found. something unlocked.',2000);}},500);}}
+
+// ══════════════════════════════════════════
+// SCENE PLAYER
+// ══════════════════════════════════════════
+function playScene(sceneId){
+  const scene=SCENES[sceneId];if(!scene)return;
+  if(scene.isEnding){playEnding(scene);return;}
+  if(scene.location)setLocation(scene.location);
+  showNarratorLine(scene.narKey||sceneId);
+
+  const tb=document.getElementById('textBox'),cb=document.getElementById('choicesBox');
+  tb.innerHTML='';cb.innerHTML='';isTyping=true;
+
+  // Memory echo on intro
+  if(sceneId==='intro'&&MEM.runs>1){
+    const memLine=getMemoryLine();
+    if(memLine){setTimeout(()=>{
+      const mel=document.createElement('span');
+      mel.className='text-line dim';mel.style.display='block';
+      mel.style.borderLeft='2px solid rgba(200,160,96,.12)';mel.style.paddingLeft='10px';
+      mel.style.marginBottom='6px';mel.style.fontSize='clamp(.76rem,2.1vw,.88rem)';
+      mel.textContent=memLine;
+      const tb=document.getElementById('textBox');if(tb)tb.insertBefore(mel,tb.firstChild);
+    },300);}
+  }
+  // Symbol hidden in scene?
+  if(scene.symbol!==undefined)setTimeout(()=>collectSymbol(scene.symbol,scene.id),500);
+  // Watcher appearance
+  if(scene.watcher)setTimeout(showWatcher,1200);
+  // Heartbeat scenes
+  if(scene.heartbeat)startHeartbeat();else stopHeartbeat();
+
+  let idx=0;
+  function nextLine(){
+    if(idx>=scene.lines.length){isTyping=false;showChoices(scene.choices?scene.choices():[]);return;}
+    const line=scene.lines[idx++];
+    const text=typeof line.text==='function'?line.text():line.text;
+    setTimeout(()=>{
+      const el=document.createElement('span');
+      el.className='text-line '+(line.cls||'');el.style.display='block';
+      tb.appendChild(el);tb.scrollTop=tb.scrollHeight;
+      if(line.sfx==='knock')playSfxKnock(3);
+      if(line.sfx==='knock_loud')playSfxKnock(5);
+      if(line.sfx==='heartbeat')playSfxHeartbeat();
+      if(line.sfx==='door')playSfxDoorOpen();
+      if(line.sfx==='glitch')triggerGlitch();
+      if(line.sfx==='red'){triggerRed();triggerShake();}
+      if(line.sfx==='purple'){triggerPurple();playSfxWatcher();}
+      if(line.sfx==='parts')spawnParts(window.innerWidth*.5,window.innerHeight*.5,'#c8a060',14,1.5);
+      if(line.cls==='glitch-text'){triggerGlitch();el.textContent=text;setTimeout(nextLine,950);}
+      else typeText(el,text,26,()=>setTimeout(nextLine,190));
+    },line.delay||0);}
+  nextLine();
+}
+
+function showChoices(choices){
+  const box=document.getElementById('choicesBox');box.innerHTML='';
+  choices.forEach((c,i)=>{
+    if(!c?.next)return;
+    const btn=document.createElement('button');
+    btn.className='choice-btn '+(c.type||'');btn.textContent=c.text;
+    btn.style.cssText='opacity:0;transform:translateX(-10px);transition:opacity .35s,transform .35s,border-color .25s,color .25s,padding-left .2s;';
+    box.appendChild(btn);
+    setTimeout(()=>{btn.style.opacity='1';btn.style.transform='translateX(0)';},80+i*100);
+    btn.addEventListener('mouseenter',()=>playSfxHover());
+    btn.addEventListener('click',()=>{
+      initAudio();
+      runStats.choices++;MEM.totalChoices++;
+      if(c.type==='danger'){runStats.dangerous++;MEM.dangerousChoices++;addStat('chaos',1);}
+      if(c.type==='safe'){runStats.safe++;MEM.safeChoices++;addStat('luck',.5);}
+      if(c.type==='secret'){runStats.secrets++;MEM.secretsFound++;addStat('intel',1);}
+      if(c.type==='watcher'){runStats.secrets++;MEM.secretsFound++;addStat('fear',2);triggerPurple();}
+      MEM.lastChoice=c.text;
+      playSfxSelect(c.type);
+      spawnParts(mx,my,c.type==='danger'?'#b82828':c.type==='secret'?'#3858b8':c.type==='watcher'?'#8840b0':'#c8a060',12,1.5);
+      box.querySelectorAll('button').forEach(b=>{b.disabled=true;b.style.opacity='.15';});
+      btn.classList.add('chosen');btn.style.opacity='1';
+      saveData(MEM);
+      setTimeout(()=>{
+        const tb2=document.getElementById('textBox');
+        tb2.style.transition='opacity .3s';tb2.style.opacity='0';
+        setTimeout(()=>{tb2.innerHTML='';box.innerHTML='';tb2.style.opacity='1';playScene(c.next);},320);
+      },420);});});
+}
+
+function playEnding(scene){
+  isTyping=true;stopHeartbeat();
+  const tb=document.getElementById('textBox'),cb=document.getElementById('choicesBox');
+  tb.innerHTML='';cb.innerHTML='';
+  if(!MEM.endingsFound.includes(scene.id))MEM.endingsFound.push(scene.id);
+  MEM.lastEndingId=scene.id;
+  if(scene.type==='true')playSfxTrueEnding();
+  let idx=0;
+  function nextLine(){
+    if(idx>=scene.lines.length){isTyping=false;
+      setTimeout(()=>{
+        if(scene.id==='E_OPEN_D'||scene.id==='E_CORRIDOR')triggerFakeClose(()=>showEndScreen(scene));
+        else fadeOut(()=>showEndScreen(scene));},950);return;}
+    const line=scene.lines[idx++];
+    const text=typeof line.text==='function'?line.text():line.text;
+    setTimeout(()=>{
+      const el=document.createElement('span');el.className='text-line '+(line.cls||'');el.style.display='block';
+      tb.appendChild(el);tb.scrollTop=tb.scrollHeight;
+      if(line.sfx==='heartbeat')playSfxHeartbeat();
+      if(line.sfx==='door')playSfxDoorOpen();
+      if(line.sfx==='glitch')triggerGlitch();
+      if(line.sfx==='red'){triggerRed();triggerShake();}
+      if(line.sfx==='purple'){triggerPurple();playSfxWatcher();}
+      if(line.cls==='glitch-text'){triggerGlitch();el.textContent=text;setTimeout(nextLine,1000);}
+      else typeText(el,text,29,()=>setTimeout(nextLine,270));
+    },line.delay||0);}
+  nextLine();
+}
+
+function showEndScreen(scene){
+  const ms=Date.now()-runStats.startTime;MEM.totalPlayMs+=ms;MEM.lastSeen=Date.now();saveData(MEM);
+  const te=document.getElementById('endTitle');te.textContent=scene.title;
+  te.className='ending-title'+(scene.type==='bad'?' bad':scene.type==='true'?' true':scene.type==='purple'?' purple':'');
+  document.getElementById('endLabel').textContent=`ENDING ${MEM.endingsFound.indexOf(scene.id)+1} OF 16`;
+  document.getElementById('endBody').textContent=scene.body;
+  document.getElementById('endStats').innerHTML=
+`RUN: ${MEM.runs}          CHOICES: ${runStats.choices}
+DANGEROUS: ${runStats.dangerous}     SAFE: ${runStats.safe}
+SECRETS: ${runStats.secrets}        TIME: ${Math.round(ms/1000)}s
+SYMBOLS: ${MEM.symbolsFound.length}/4     ENDINGS: ${MEM.endingsFound.length}`;
+  const ef=document.getElementById('endingsFound');
+  ef.innerHTML=`ENDINGS FOUND: <span>${MEM.endingsFound.length}</span> / 16`;
+  if(scene.type==='true')ef.innerHTML+='<br><span style="color:var(--glitch);font-size:.52rem;letter-spacing:2px;">✓ TRUE ENDING DISCOVERED</span>';
+  if(scene.type==='true')spawnParts(window.innerWidth/2,window.innerHeight/2,'#00ffcc',40,3);
+  else if(scene.type==='bad')spawnParts(window.innerWidth/2,window.innerHeight/2,'#b02828',20,2);
+  else if(scene.type==='purple')spawnParts(window.innerWidth/2,window.innerHeight/2,'#8840b0',25,2.5);
+  showScreen('endScreen');fadeIn();
+}
+
+// ══════════════════════════════════════════
+// FAKE CLOSE
+// ══════════════════════════════════════════
+function triggerFakeClose(cb){
+  MEM.closedGame=true;saveData(MEM);
+  const fc=document.getElementById('fakeClose'),fill=document.getElementById('fkFill'),txt=document.getElementById('fkText');
+  fc.classList.add('show');fill.style.width='0%';
+  const msgs=['CLOSING GAME...','SAVING DATA...','FLUSHING MEMORY...','ERROR: CANNOT CLOSE','SOMETHING IS PREVENTING CLOSE','— narrator override detected —'];
+  let step=0;
+  const iv=setInterval(()=>{fill.style.width=Math.min(100,step*14)+'%';
+    if(step<msgs.length)txt.textContent=msgs[step];step++;
+    if(step>9){clearInterval(iv);fill.style.background='var(--red)';
+      txt.textContent='THE GAME WILL NOT CLOSE. IT NEVER DOES.';
+      playSfxGlitch();
+      setTimeout(()=>{fc.classList.remove('show');fill.style.background='var(--dim)';
+        fadeOut(()=>{fadeIn();cb();});},2000);}},140);}
+
+// ══════════════════════════════════════════
+// DYNAMIC TEXT
+// ══════════════════════════════════════════
+function getIntroLine(){const r=MEM.runs;if(r===1)return'You are in a room.';if(r===2)return'You are in the room again.';if(r===3)return'Still the same room.';if(r<7)return`This is the ${['','','','','fourth','fifth','sixth'][r]} time.`;return'You know where you are.';}
+function getDescLine(){const o=['The floor is stone. The ceiling is lost in shadow.','The air smells of something old. Not unpleasant. Almost familiar.','It is very quiet here. Quieter than real silence.','You notice you have no memory of how you got here.'];return o[MEM.runs%o.length];}
+function getLookDesc(){if(MEM.runs===1)return'Stone walls. A single lamp. A floor that feels deeper than it should.';if(MEM.runs===2)return'The same walls. The lamp is slightly to the left of where you remember.';return`The same walls. There are tallies on them now. ${MEM.runs-1} marks.`;}
+function getTouchResult(){if(STATS.fear>3)return'Cold. Impossibly cold. Then warm. Like a cheek.';if(STATS.chaos>3)return'It pulses. Once. Under your hand.';const o=['Cold. Smooth. Slightly damp.','Warmer than you expected.','Nothing. Just a surface.','Something pushes back. Then nothing.'];return o[Math.floor(Math.random()*o.length)];}
+function getListenResult(){const o=['Breathing. Slow and deep.','Nothing. Then: a footstep.','A low hum. Rhythmic.','Wind that shouldn\'t be there.','Your own heartbeat, reflected back louder.'];return o[Math.floor(Math.random()*o.length)];}
+function getWhisperResp(){if(MEM.runs>5)return'"...you\'re late."';return['"...nothing."','...a shift of air.','"...mm."'][Math.floor(Math.random()*3)];}
+function getWhatAnswer(){return['THE WAY OUT','WHAT COMES AFTER','YOUR OWN REFLECTION INVERTED','THE REASON YOU KEEP RETURNING','YOU. MINUS THE FEAR.'][Math.floor(Math.random()*5)];}
+function getKnockResp(){if(MEM.runs>3)return'Three knocks back. Slower. More deliberate.';return['Nothing.','A sound, deep inside. Something moving.','Silence. Heavy.'][Math.floor(Math.random()*3)];}
+function getMouthed(){if(MEM.runs>6)return'"DON\'T."';return['"STOP."','"GO BACK."','"NOT YET."'][Math.floor(Math.random()*3)];}
+function getDiffNote(){const o=['The grain of the door runs vertically now. Before it ran horizontally.','There is a scratch near the handle. Not from you.','The shadow the door casts falls toward the light source.','The door is a centimetre taller than it was.'];return o[MEM.runs%o.length];}
+function getCorridorDesc(){const o=['Identical doors on every side. Numbered. The numbers go down.','The floor is different here. Softer.','You can hear something moving in one of the rooms.','The corridor loops. You\'ve passed this mark before.'];return o[MEM.runs%o.length];}
+function getMirrorDesc(){return MEM.runs>4?'Your reflection moves half a second before you.':'Your reflection is standing too still.';}
+function getBasementLine(){return STATS.fear>4?'It\'s very cold. Something drips.':'Darker than the room above. Much darker.';}
+function getWatcherLine(){
+  if(!MEM.watcherSeen)return'There is someone in the corner. They are very still.';
+  return['They were here last time too.','They\'re watching the door, not you.','The chair they sat in last time is empty now.'][MEM.runs%3];}
+
+// ══════════════════════════════════════════
+// SCENES — ALL LOCATIONS
+// ══════════════════════════════════════════
+const SCENES={
+
+  // ── THE ROOM ─────────────────────────────
+  intro:{location:'THE ROOM',narKey:'intro',
+    lines:[{text:()=>getIntroLine(),cls:''},{text:'...',cls:'dim',delay:700},
+      {text:'There is a door.',cls:'',delay:400},{text:()=>getDescLine(),cls:'dim',delay:300}],
+    choices:()=>{const o=[{text:'Approach the door.',next:'approach',type:'safe'},
+      {text:'Look around first.',next:'look_around',type:'safe'}];
+      if(MEM.runs>=2)o.push({text:'You\'ve been here before.',next:'meta_aware',type:'secret'});
+      if(MEM.runs>=5)o.push({text:'...I know what this is.',next:'very_aware',type:'secret'});
+      if(MEM.watcherSeen||MEM.runs>=5)o.push({text:'Look at the figure in the corner.',next:'watcher_scene',type:'watcher'});
+      return o;}},
+
+  approach:{location:'THE ROOM',narKey:'approach',
+    lines:[{text:'You walk toward the door.',cls:''},{text:'It is made of something dark.',cls:'dim',delay:400},
+      {text:'Not wood. Not metal.',cls:'dim',delay:300},{text:'Something that absorbs light.',cls:'',delay:400}],
+    choices:()=>{const o=[{text:'Touch the door.',next:'touch_door',type:'safe'},
+      {text:'Press your ear against it.',next:'listen_door',type:'safe'},
+      {text:'Step back.',next:'step_back',type:'safe'}];
+      if(STATS.chaos>3)o.push({text:'Kick it open.',next:'kick_door',type:'danger'});
+      return o;}},
+
+  look_around:{location:'THE ROOM',symbol:0,
+    lines:[{text:'You look around.',cls:''},{text:()=>getLookDesc(),cls:'dim',delay:400},
+      {text:'...',cls:'dim',delay:900},{text:'The door is still there.',cls:'',delay:300},
+      {text:'𐌈', cls:'dim',delay:500},{text:'Waiting.',cls:'dim',delay:300}],
+    choices:()=>[{text:'Approach the door.',next:'approach',type:'safe'},
+      {text:'Sit down.',next:'sit_think',type:'safe'},{text:'Leave.',next:'ending_leave',type:'danger'},
+      {text:'Explore the corridor.',next:'the_corridor',type:'secret'}]},
+
+  meta_aware:{location:'THE ROOM',
+    lines:[{text:()=>`You've been here ${MEM.runs-1} time${MEM.runs>2?'s':''} before.`,cls:'accent'},
+      {text:'The door doesn\'t react.',cls:'dim',delay:400},{text:'But something shifts in the air.',cls:'',delay:400},
+      {text:'Like it heard you.',cls:'dim',delay:500}],
+    choices:()=>{addStat('intel',1);addStat('luck',1);
+      return[{text:'Say: "I know you can hear me."',next:'speak_to_door',type:'secret'},
+        {text:'Approach anyway.',next:'approach',type:'safe'},
+        {text:'Look for a difference.',next:'look_difference',type:'safe'}];}},
+
+  very_aware:{location:'THE ROOM',
+    lines:[{text:()=>`Run ${MEM.runs}. Same door.`,cls:'accent'},
+      {text:'Or is it?',cls:'dim',delay:700},{text:'...',cls:'dim',delay:900},
+      {text:()=>MEM.trueEndingUnlocked?'The door has a keyhole now.':'You notice a hairline crack.',cls:'',delay:400}],
+    choices:()=>{addStat('intel',2);
+      const o=[{text:'Examine it.',next:MEM.trueEndingUnlocked?'true_path_start':'crack_found',type:'secret'},
+        {text:'Approach normally.',next:'approach',type:'safe'}];
+      if(MEM.trueEndingUnlocked)o.unshift({text:'→ Use the keyhole.',next:'true_ending',type:'secret'});
+      if(MEM.symbolsFound.length>=4)o.push({text:'𐌈 ⊗ ⟁ ⌖ — speak the sequence.',next:'symbols_ending',type:'secret'});
+      return o;}},
+
+  speak_to_door:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'"I know you can hear me."',cls:'italic'},
+      {text:'...',cls:'dim',delay:1100},{text:'The door does not answer.',cls:''},
+      {text:'But the air gets colder.',cls:'dim',delay:500,sfx:'heartbeat'},
+      {text:()=>MEM.runs>4?'You feel watched.':'Something shifts behind it.',cls:'',delay:600}],
+    choices:()=>{addStat('trust',-1);addStat('fear',1);MEM.secretsFound++;
+      return[{text:'"Why do you keep bringing me back?"',next:'demand_answers',type:'secret'},
+        {text:'Touch the door.',next:'touch_door',type:'safe'},
+        {text:'Back away.',next:'step_back',type:'safe'}];}},
+
+  demand_answers:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'"Why do you keep bringing me back?"',cls:'italic'},
+      {text:'...',cls:'dim',delay:1500},{text:'Nothing.',cls:'dim',delay:700},
+      {text:'And then—',cls:'',delay:900},{text:'— the door opens. Slightly.',cls:'accent',delay:400,sfx:'door'}],
+    choices:()=>{addStat('chaos',2);addStat('luck',1);MEM.trueEndingUnlocked=true;saveData(MEM);
+      return[{text:'Push it open.',next:'ending_beyond',type:'danger'},
+        {text:'Peer through the gap.',next:'peek_beyond',type:'safe'},
+        {text:'Close it again.',next:'close_reopened',type:'safe'}];}},
+
+  peek_beyond:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'You lean in.',cls:''},{text:'You see...',cls:'dim',delay:900},
+      {text:'...',cls:'dim',delay:1300},{text:'...yourself.',cls:'accent',delay:700,sfx:'heartbeat'},
+      {text:'On the other side of a door.',cls:'',delay:400},{text:'Looking in.',cls:'dim',delay:400}],
+    choices:()=>{addStat('fear',3);addStat('intel',2);
+      return[{text:'Wave at yourself.',next:'wave_self',type:'secret'},
+        {text:'Slam it shut.',next:'ending_refuse',type:'safe'},
+        {text:'Step through.',next:'ending_mirror',type:'danger'}];}},
+
+  wave_self:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'You wave.',cls:''},{text:'...',cls:'dim',delay:1100},
+      {text:'The other you does not wave back.',cls:'red',delay:500,sfx:'red'},
+      {text:'It mouths something.',cls:'',delay:700},{text:()=>getMouthed(),cls:'accent',delay:900}],
+    choices:()=>{addStat('fear',2);
+      return[{text:'Step through.',next:'ending_mirror',type:'danger'},{text:'Run.',next:'ending_run',type:'safe'}];}},
+
+  touch_door:{location:'THE ROOM',
+    lines:[{text:'You reach out.',cls:''},{text:'Your fingers make contact.',cls:'dim',delay:500},
+      {text:()=>getTouchResult(),cls:'',delay:400}],
+    choices:()=>{const o=[{text:'Knock.',next:'knock',type:'safe'},{text:'Try the handle.',next:'try_handle',type:'safe'}];
+      if(STATS.fear>2)o.push({text:'Pull your hand away.',next:'pull_away',type:'safe'});
+      if(STATS.chaos>4||MEM.dangerousChoices>3)o.push({text:'Press your face against it.',next:'face_door',type:'danger'});
+      return o;}},
+
+  listen_door:{location:'THE ROOM',symbol:1,heartbeat:true,
+    lines:[{text:'You press your ear to the surface.',cls:''},{text:'...',cls:'dim',delay:900},
+      {text:()=>getListenResult(),cls:'',delay:400,sfx:'heartbeat'},
+      {text:'⊗',cls:'dim',delay:600},{text:()=>STATS.intel>4?'You recognize the pattern. It\'s breathing.':'...',cls:'dim',delay:400}],
+    choices:()=>{addStat('intel',1);
+      return[{text:'Knock back.',next:'knock',type:'safe'},{text:'Back away.',next:'step_back',type:'safe'},
+        {text:'Whisper through the door.',next:'whisper_door',type:'secret'}];}},
+
+  whisper_door:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'"Hello?"',cls:'italic'},{text:'...',cls:'dim',delay:1300},
+      {text:()=>getWhisperResp(),cls:'accent',delay:700},{text:'You step back.',cls:'dim',delay:700}],
+    choices:()=>{addStat('fear',1);addStat('trust',-1);MEM.secretsFound++;
+      return[{text:'Ask: "What are you?"',next:'ask_what',type:'secret'},
+        {text:'Try the handle.',next:'try_handle',type:'safe'},
+        {text:'Run.',next:'ending_run',type:'danger'}];}},
+
+  ask_what:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'"What are you?"',cls:'italic'},{text:'...',cls:'dim',delay:1900},
+      {text:()=>getWhatAnswer(),cls:'glitch-text',delay:400,sfx:'glitch'},
+      {text:'...',cls:'dim',delay:700},{text:'Then silence again.',cls:'',delay:400}],
+    choices:()=>{addStat('fear',2);addStat('intel',2);MEM.secretsFound++;
+      return[{text:'Open the door.',next:'try_handle',type:'danger'},
+        {text:'Accept this. Walk away.',next:'ending_accept',type:'safe'}];}},
+
+  knock:{location:'THE ROOM',
+    lines:[{text:'You knock.',cls:'',sfx:'knock'},{text:'Three times.',cls:'dim',delay:700},
+      {text:'...',cls:'dim',delay:1100},{text:()=>getKnockResp(),cls:'',delay:400}],
+    choices:()=>{const o=[{text:'Try the handle.',next:'try_handle',type:'safe'}];
+      if(Math.random()<.5||STATS.chaos>3)o.push({text:'Knock again. Louder.',next:'knock_loud',type:'danger'});
+      o.push({text:'Leave.',next:'ending_leave',type:'safe'});return o;}},
+
+  knock_loud:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'You knock hard. Four, five, six times.',cls:'',sfx:'knock_loud'},{text:'...',cls:'dim',delay:1100},
+      {text:()=>MEM.runs>3?'Something knocks back. Exactly six times.':'The door shudders.',cls:'red',delay:600,sfx:'red'},
+      {text:()=>MEM.runs>3?'It knows how many you knocked.':'...',cls:'dim',delay:700}],
+    choices:()=>{addStat('chaos',2);addStat('fear',1);
+      return[{text:'Open it.',next:'try_handle',type:'danger'},{text:'Run.',next:'ending_run',type:'safe'},
+        {text:'Stand your ground.',next:'stand_ground',type:'secret'}];}},
+
+  stand_ground:{location:'THE ROOM',
+    lines:[{text:'You don\'t move.',cls:''},{text:'The door stops shaking.',cls:'dim',delay:900},
+      {text:'...',cls:'dim',delay:1300},{text:'Silence.',cls:'',delay:400},
+      {text:'You realize: it was testing you.',cls:'accent',delay:700,sfx:'parts'}],
+    choices:()=>{addStat('luck',2);addStat('fear',-1);MEM.secretsFound++;
+      return[{text:'Slowly open the door.',next:'try_handle',type:'safe'},
+        {text:'Walk away. You passed.',next:'ending_accept',type:'safe'}];}},
+
+  try_handle:{location:'THE ROOM',
+    lines:[{text:'You reach for the handle.',cls:''},{text:'Cold iron.',cls:'dim',delay:500},
+      {text:'You turn it.',cls:'',delay:600,sfx:'door'}],
+    choices:()=>{const o=[];
+      if(STATS.luck>4)o.push({text:'→ Push open.',next:'ending_open_light',type:'safe'});
+      else if(STATS.chaos>5)o.push({text:'→ Push open.',next:'ending_open_dark',type:'danger'});
+      else o.push({text:'→ Push open.',next:'ending_open_neutral',type:'safe'});
+      o.push({text:'→ Pull closed again.',next:'close_at_last',type:'safe'});
+      if(MEM.dangerousChoices>4)o.push({text:'→ Walk through without looking.',next:'ending_blind',type:'danger'});
+      return o;}},
+
+  close_at_last:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'You pull it closed.',cls:''},{text:'At the last moment.',cls:'dim',delay:700},
+      {text:'...',cls:'dim',delay:1100},{text:'You feel something pull back.',cls:'red',delay:600,sfx:'heartbeat'},
+      {text:'Trying to keep it open.',cls:'dim',delay:500}],
+    choices:()=>{addStat('fear',2);addStat('chaos',1);
+      return[{text:'Hold it shut.',next:'ending_hold',type:'safe'},{text:'Let go.',next:'ending_open_dark',type:'danger'}];}},
+
+  step_back:{location:'THE ROOM',
+    lines:[{text:'You step back.',cls:''},{text:'Putting distance between you and the door.',cls:'dim',delay:600},
+      {text:'The door remains.',cls:'',delay:700}],
+    choices:()=>[{text:'Approach again.',next:'approach',type:'safe'},
+      {text:'Leave.',next:'ending_leave',type:'safe'},{text:'Sit and watch.',next:'sit_watch',type:'secret'},
+      {text:'Go to the corridor.',next:'the_corridor',type:'secret'}]},
+
+  sit_watch:{location:'THE ROOM',symbol:2,
+    lines:[{text:'You sit. You watch.',cls:''},{text:'...',cls:'dim',delay:1100},{text:'...',cls:'dim',delay:1600},
+      {text:'⟁',cls:'dim',delay:400},{text:()=>STATS.intel>4?'After a while: the door is slightly closer.':'After a long time: nothing.',cls:'accent',delay:600}],
+    choices:()=>{MEM.secretsFound++;
+      return[{text:'Approach now.',next:'approach',type:'safe'},{text:'Close your eyes.',next:'eyes_closed',type:'secret'}];}},
+
+  eyes_closed:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'You close your eyes.',cls:''},{text:'...',cls:'dim',delay:1300},
+      {text:'You feel the air move.',cls:'dim',delay:900,sfx:'heartbeat'},
+      {text:'Something passes you.',cls:'red',delay:700},{text:'Going the other way.',cls:'',delay:500},
+      {text:'OUT.',cls:'accent',delay:900}],
+    choices:()=>{addStat('fear',3);addStat('chaos',2);
+      return[{text:'Open your eyes.',next:'ending_swap',type:'danger'},
+        {text:'Keep them closed.',next:'ending_blind_safe',type:'safe'}];}},
+
+  sit_think:{location:'THE ROOM',
+    lines:[{text:'You sit.',cls:''},{text:'You think about why you\'re here.',cls:'dim',delay:700},
+      {text:'...',cls:'dim',delay:900},{text:'"I could leave. I always could."',cls:'italic',delay:500}],
+    choices:()=>{addStat('intel',1);
+      return[{text:'Stand up. Approach.',next:'approach',type:'safe'},
+        {text:'You already know the answer.',next:'ending_accept',type:'secret'}];}},
+
+  pull_away:{location:'THE ROOM',
+    lines:[{text:'You pull your hand back.',cls:''},{text:'Your fingers leave a print.',cls:'dim',delay:700},
+      {text:'The print disappears.',cls:'',delay:700},{text:'...inward.',cls:'red',delay:900,sfx:'red'}],
+    choices:()=>{addStat('fear',2);
+      return[{text:'Try the handle.',next:'try_handle',type:'danger'},{text:'Leave.',next:'ending_leave',type:'safe'}];}},
+
+  face_door:{location:'THE ROOM',heartbeat:true,
+    lines:[{text:'You press your face against it.',cls:''},{text:'Cold. So cold.',cls:'dim',delay:700,sfx:'heartbeat'},
+      {text:'...',cls:'dim',delay:1100},
+      {text:()=>MEM.runs>4?'You hear your own name.':'You hear something rhythmic.',cls:'red',delay:600}],
+    choices:()=>{addStat('fear',2);addStat('chaos',1);
+      return[{text:'Open it.',next:'try_handle',type:'danger'},{text:'Scream into the door.',next:'ending_scream',type:'danger'},
+        {text:'Pull away and run.',next:'ending_run',type:'safe'}];}},
+
+  kick_door:{location:'THE ROOM',
+    lines:[{text:'You kick it. Hard.',cls:'',sfx:'knock_loud'},{text:'Your foot doesn\'t hurt.',cls:'dim',delay:600},
+      {text:'That\'s strange.',cls:'',delay:500},{text:'The door swings open.',cls:'red',delay:700,sfx:'door'},
+      {text:'Like it was waiting.',cls:'dim',delay:400}],
+    choices:()=>{addStat('chaos',3);addStat('fear',1);
+      return[{text:'Step inside.',next:'ending_open_dark',type:'danger'},{text:'Close it.',next:'ending_refuse',type:'safe'}];}},
+
+  look_difference:{location:'THE ROOM',
+    lines:[{text:'You look for anything different.',cls:''},{text:'...',cls:'dim',delay:900},
+      {text:()=>getDiffNote(),cls:'accent',delay:600}],
+    choices:()=>{addStat('intel',2);MEM.secretsFound++;
+      return[{text:'Approach.',next:'touch_door',type:'safe'},
+        {text:'Say: "I see you changing."',next:'speak_to_door',type:'secret'}];}},
+
+  close_reopened:{location:'THE ROOM',
+    lines:[{text:'You push it closed.',cls:''},{text:'It resists. Then relents.',cls:'dim',delay:700},
+      {text:'The handle clicks.',cls:'dim',delay:500}],
+    choices:()=>[{text:'Open it again.',next:'try_handle',type:'safe'},{text:'Leave.',next:'ending_leave',type:'safe'}]},
+
+  crack_found:{location:'THE ROOM',
+    lines:[{text:'You trace the crack.',cls:''},{text:'It\'s warm inside.',cls:'dim',delay:600,sfx:'heartbeat'},
+      {text:'Like it goes further than the door.',cls:'accent',delay:700}],
+    choices:()=>{addStat('intel',2);MEM.secretsFound++;
+      return[{text:'Try to open it.',next:'try_handle',type:'safe'},{text:'Come back next time.',next:'ending_leave',type:'safe'}];}},
+
+  true_path_start:{location:'THE ROOM',
+    lines:[{text:'The keyhole wasn\'t here before.',cls:'accent'},{text:'You don\'t have a key.',cls:'dim',delay:600},
+      {text:'...do you?',cls:'',delay:900}],
+    choices:()=>[{text:'→ Check your pocket.',next:'true_ending',type:'secret'},{text:'Leave.',next:'ending_leave',type:'safe'}]},
+
+  // ── THE CORRIDOR ─────────────────────────
+  the_corridor:{location:'THE CORRIDOR',narKey:'default',symbol:3,
+    lines:[{text:'You step out of the room.',cls:''},{text:()=>getCorridorDesc(),cls:'dim',delay:500},
+      {text:'⌖',cls:'dim',delay:400},{text:'Doors on both sides. Identical.',cls:'',delay:400},
+      {text:'Numbered. The numbers go up on the left.',cls:'dim',delay:400},
+      {text:'Down on the right.',cls:'red',delay:300}],
+    choices:()=>{addStat('intel',1);collectSymbol(3,'corridor');
+      return[{text:'Try a door numbered higher.',next:'corridor_high',type:'safe'},
+        {text:'Try a door numbered lower.',next:'corridor_low',type:'danger'},
+        {text:'Stand still and listen.',next:'corridor_listen',type:'secret'},
+        {text:'Go back to the room.',next:'intro',type:'safe'}];}},
+
+  corridor_high:{location:'THE CORRIDOR',
+    lines:[{text:'You try the door.',cls:''},{text:'It opens.',cls:'dim',delay:500},
+      {text:'Another room. Another door.',cls:'',delay:500},{text:'Smaller.',cls:'dim',delay:400},
+      {text:'The door here is smaller too.',cls:'',delay:400}],
+    choices:()=>[{text:'Open the smaller door.',next:'room_inside_room',type:'secret'},
+      {text:'Go back.',next:'the_corridor',type:'safe'}]},
+
+  corridor_low:{location:'THE CORRIDOR',heartbeat:true,
+    lines:[{text:'You try the door with the lower number.',cls:'',sfx:'door'},
+      {text:'It\'s unlocked.',cls:'dim',delay:500},{text:'The room inside is identical to yours.',cls:'',delay:400},
+      {text:'Except everything is reversed.',cls:'red',delay:500,sfx:'red'},
+      {text:'The door is on the opposite wall.',cls:'dim',delay:400}],
+    choices:()=>{addStat('chaos',2);addStat('fear',1);
+      return[{text:'Approach the reversed door.',next:'try_handle',type:'danger'},
+        {text:'Get out. Get out now.',next:'ending_run',type:'safe'}];}},
+
+  corridor_listen:{location:'THE CORRIDOR',heartbeat:true,
+    lines:[{text:'You stand still.',cls:''},{text:'...',cls:'dim',delay:1200},
+      {text:'Footsteps. Behind one of the doors.',cls:'',delay:600,sfx:'heartbeat'},
+      {text:'Regular. Slow.',cls:'dim',delay:500},{text:'Getting closer.',cls:'red',delay:600}],
+    choices:()=>{addStat('fear',2);MEM.secretsFound++;
+      return[{text:'Call out.',next:'corridor_callout',type:'secret'},
+        {text:'Run back to your room.',next:'intro',type:'safe'},
+        {text:'Open the door they\'re behind.',next:'watcher_scene',type:'watcher'}];}},
+
+  corridor_callout:{location:'THE CORRIDOR',heartbeat:true,
+    lines:[{text:'"Hello?"',cls:'italic'},{text:'...',cls:'dim',delay:1400},
+      {text:'The footsteps stop.',cls:'dim',delay:600},{text:'...',cls:'dim',delay:1000},
+      {text:()=>MEM.runs>5?'"I\'ve been waiting for you to do that."':'Silence.',cls:'accent',delay:500}],
+    choices:()=>{addStat('intel',2);addStat('fear',1);
+      return[{text:'Follow the voice.',next:'watcher_scene',type:'watcher'},
+        {text:'Go back. Immediately.',next:'intro',type:'safe'}];}},
+
+  room_inside_room:{location:'THE CORRIDOR',
+    lines:[{text:'You open the smaller door.',cls:'',sfx:'door'},{text:'A room inside a room.',cls:'dim',delay:500},
+      {text:'Inside that: a door.',cls:'',delay:400},{text:'Smaller again.',cls:'dim',delay:500},
+      {text:'You understand now.',cls:'accent',delay:700},{text:'There is no end to this.',cls:'dim',delay:500}],
+    choices:()=>[{text:'Keep going.',next:'ending_corridor',type:'danger'},
+      {text:'Stop. Turn back.',next:'ending_accept',type:'safe'}]},
+
+  // ── THE MIRROR ROOM ───────────────────────
+  the_mirror_room:{location:'THE MIRROR ROOM',narKey:'default',heartbeat:true,
+    lines:[{text:'The door opened to a mirror.',cls:''},{text:()=>getMirrorDesc(),cls:'dim',delay:600,sfx:'heartbeat'},
+      {text:'You have always been here.',cls:'',delay:500},{text:'You just forgot.',cls:'dim',delay:400}],
+    choices:()=>{addStat('fear',3);
+      return[{text:'Touch the mirror.',next:'mirror_touch',type:'danger'},
+        {text:'Speak to your reflection.',next:'mirror_speak',type:'secret'},
+        {text:'Smash it.',next:'mirror_smash',type:'danger'},
+        {text:'Turn away.',next:'ending_refuse',type:'safe'}];}},
+
+  mirror_touch:{location:'THE MIRROR ROOM',heartbeat:true,
+    lines:[{text:'You reach out.',cls:''},{text:'Your reflection does not reach back.',cls:'red',delay:600,sfx:'red'},
+      {text:'It just watches.',cls:'dim',delay:500},{text:'Your hand touches the surface.',cls:'',delay:500},
+      {text:'Cold.',cls:'dim',delay:400},{text:'And your reflection smiles.',cls:'red',delay:700}],
+    choices:()=>{addStat('fear',3);addStat('chaos',2);
+      return[{text:'Step through.',next:'ending_mirror',type:'danger'},
+        {text:'Pull back. Run.',next:'ending_run',type:'safe'}];}},
+
+  mirror_speak:{location:'THE MIRROR ROOM',heartbeat:true,
+    lines:[{text:'"What are you?"',cls:'italic'},{text:'...',cls:'dim',delay:1400},
+      {text:'Your reflection mouths something.',cls:'',delay:600},{text:'Not what you said.',cls:'dim',delay:500},
+      {text:()=>getMouthed(),cls:'glitch-text',delay:700,sfx:'glitch'}],
+    choices:()=>{addStat('intel',2);addStat('fear',2);MEM.secretsFound++;
+      return[{text:'Listen to it.',next:'ending_mirror',type:'danger'},
+        {text:'Look away.',next:'ending_accept',type:'safe'}];}},
+
+  mirror_smash:{location:'THE MIRROR ROOM',heartbeat:true,
+    lines:[{text:'You smash the mirror.',cls:'',sfx:'red'},{text:'Glass everywhere.',cls:'dim',delay:500,sfx:'glitch'},
+      {text:'Your reflection doesn\'t shatter.',cls:'red',delay:600},{text:'It stands in the broken frame.',cls:'dim',delay:500},
+      {text:'Still watching.',cls:'',delay:400}],
+    choices:()=>{addStat('chaos',3);addStat('fear',2);
+      return[{text:'Run.',next:'ending_run',type:'safe'},{text:'Face it.',next:'ending_swap',type:'danger'}];}},
+
+  // ── THE BASEMENT ──────────────────────────
+  the_basement:{location:'THE BASEMENT',narKey:'default',heartbeat:true,
+    lines:[{text:'There\'s a staircase.',cls:''},{text:'You didn\'t notice it before.',cls:'dim',delay:500},
+      {text:()=>getBasementLine(),cls:'',delay:400},{text:'The door is here.',cls:'',delay:500},
+      {text:'On the ceiling.',cls:'red',delay:600,sfx:'red'}],
+    choices:()=>{addStat('fear',2);
+      return[{text:'Try to reach the door.',next:'basement_reach',type:'secret'},
+        {text:'Look around.',next:'basement_look',type:'safe'},
+        {text:'Go back upstairs.',next:'intro',type:'safe'}];}},
+
+  basement_reach:{location:'THE BASEMENT',heartbeat:true,
+    lines:[{text:'You reach upward.',cls:''},{text:'The door is too high.',cls:'dim',delay:500},
+      {text:'But as you stand there—',cls:'',delay:700},{text:'the room shifts.',cls:'red',delay:500,sfx:'red'},
+      {text:'The ceiling is now the floor.',cls:'',delay:500},{text:'You\'re standing in front of the door.',cls:'accent',delay:600,sfx:'parts'}],
+    choices:()=>{addStat('intel',2);MEM.secretsFound++;
+      return[{text:'Open it.',next:'try_handle',type:'safe'},{text:'Wait. This isn\'t right.',next:'ending_refuse',type:'safe'}];}},
+
+  basement_look:{location:'THE BASEMENT',
+    lines:[{text:'You look around.',cls:''},{text:'Chains. Old furniture. Water marks.',cls:'dim',delay:500},
+      {text:'A chair.',cls:'',delay:400},{text:'Facing upward.',cls:'dim',delay:400},
+      {text:'Like someone used to sit here.',cls:'',delay:500},{text:'Looking at the door in the ceiling.',cls:'accent',delay:500}],
+    choices:()=>{MEM.watcherSeen=true;saveData(MEM);
+      return[{text:'Sit in the chair.',next:'watcher_scene',type:'watcher'},
+        {text:'Go back upstairs.',next:'intro',type:'safe'}];}},
+
+  // ── THE WATCHER ───────────────────────────
+  watcher_scene:{location:'THE ROOM',watcher:true,narKey:'default',heartbeat:true,
+    lines:[{text:()=>getWatcherLine(),cls:'dim',sfx:'purple'},
+      {text:'...',cls:'dim',delay:1400},{text:'They don\'t look at you.',cls:'',delay:500},
+      {text:'Only at the door.',cls:'dim',delay:400}],
+    choices:()=>{addStat('fear',2);playSfxWatcher();
+      return[{text:'Sit beside them.',next:'watcher_sit',type:'watcher'},
+        {text:'Ask them: "How long have you been here?"',next:'watcher_ask',type:'watcher'},
+        {text:'Back away quietly.',next:'step_back',type:'safe'},
+        {text:'Ask them: "Are you me?"',next:'watcher_are_you_me',type:'secret'}];}},
+
+  watcher_sit:{location:'THE ROOM',watcher:true,heartbeat:true,
+    lines:[{text:'You sit beside them.',cls:''},{text:'...',cls:'dim',delay:1200},
+      {text:'They smell of old rooms and waiting.',cls:'dim',delay:500},
+      {text:'You both watch the door.',cls:'',delay:500},{text:'...',cls:'dim',delay:1400},
+      {text:'They stand up.',cls:'purple',delay:600},{text:'And walk through the door.',cls:'purple',delay:400,sfx:'door'},
+      {text:'Without opening it.',cls:'dim',delay:400}],
+    choices:()=>{addStat('intel',3);addStat('fear',1);MEM.watcherSeen=true;saveData(MEM);
+      return[{text:'Follow them.',next:'ending_watcher_follow',type:'watcher'},
+        {text:'Stay and watch the door.',next:'sit_watch',type:'safe'}];}},
+
+  watcher_ask:{location:'THE ROOM',watcher:true,heartbeat:true,
+    lines:[{text:'"How long have you been here?"',cls:'italic'},
+      {text:'...',cls:'dim',delay:1600},{text:'They turn.',cls:'dim',delay:500},
+      {text:'First time you\'ve seen their face.',cls:'',delay:500},
+      {text:()=>MEM.runs>7?'It\'s yours. Older.':'It\'s covered in shadow.',cls:'purple',delay:600,sfx:'purple'}],
+    choices:()=>{addStat('fear',3);addStat('intel',2);MEM.secretsFound++;
+      return[{text:'"Am I going to be you?"',next:'watcher_are_you_me',type:'secret'},
+        {text:'Look away.',next:'ending_accept',type:'safe'}];}},
+
+  watcher_are_you_me:{location:'THE ROOM',watcher:true,heartbeat:true,
+    lines:[{text:'"Are you me?"',cls:'italic'},{text:'...',cls:'dim',delay:1800},
+      {text:'They nod once.',cls:'purple',delay:600,sfx:'purple'},{text:'Slowly.',cls:'dim',delay:400},
+      {text:'Then they walk into the door.',cls:'',delay:600,sfx:'door'},
+      {text:'And you realize you\'ve been standing here',cls:'dim',delay:600},
+      {text:'for a very long time.',cls:'accent',delay:400}],
+    choices:()=>{addStat('fear',3);addStat('intel',3);MEM.trueEndingUnlocked=true;saveData(MEM);MEM.secretsFound++;
+      return[{text:'Open the door.',next:'ending_open_light',type:'safe'},
+        {text:'Sit down. Keep watching.',next:'ending_accept',type:'safe'}];}},
+
+  // ── ENDINGS ──────────────────────────────
+  ending_leave:{isEnding:true,id:'E_LEAVE',title:'SOME DOORS STAY CLOSED',type:'neutral',
+    body:'You turned away. Maybe that was wise.\nMaybe the door wanted you to.',
+    lines:[{text:'You leave.',cls:''},{text:'You don\'t look back.',cls:'dim',delay:600},
+      {text:'...',cls:'dim',delay:1100},{text:'But you know.',cls:'',delay:700},{text:'You\'ll be back.',cls:'accent',delay:600}]},
+
+  ending_run:{isEnding:true,id:'E_RUN',title:'RUNNING DOESN\'T HELP',type:'neutral',
+    body:'You ran. Fast. Far.\nThe door was at the end of every corridor.',
+    lines:[{text:'You run.',cls:''},{text:'The corridor blurs.',cls:'dim',delay:500},
+      {text:'...',cls:'dim',delay:1100},{text:'You stop.',cls:'',delay:500},
+      {text:'The door is ahead of you.',cls:'red',delay:700,sfx:'red'},{text:'Waiting.',cls:'dim',delay:500}]},
+
+  ending_open_neutral:{isEnding:true,id:'E_OPEN_N',title:'ORDINARY AFTER ALL',type:'neutral',
+    body:'There was a room on the other side.\nOrdinary. Empty. A window. White light.\nYou sat there until you forgot why you came.',
+    lines:[{text:'You open the door.',cls:'',sfx:'door'},{text:'White light.',cls:'dim',delay:700},
+      {text:'A room. Empty.',cls:'',delay:500},{text:'A chair by a window.',cls:'dim',delay:500},
+      {text:'The door behind you is gone.',cls:'accent',delay:900,sfx:'parts'}]},
+
+  ending_open_light:{isEnding:true,id:'E_OPEN_L',title:'THERE WAS SOMEONE THERE',type:'good',
+    body:'Someone was waiting on the other side.\nThey looked relieved to see you.\nYou stayed.',
+    lines:[{text:'You open the door.',cls:'',sfx:'door'},{text:'Warm light.',cls:'accent',delay:600,sfx:'parts'},
+      {text:'A face you recognize.',cls:'',delay:600},{text:'You don\'t know from where.',cls:'dim',delay:500},
+      {text:'But it doesn\'t matter.',cls:'',delay:500}]},
+
+  ending_open_dark:{isEnding:true,id:'E_OPEN_D',title:'WHAT OPENED IT',type:'bad',
+    body:'The door opened.\nBut you didn\'t open it.\nYou realize you\'ve been on this side the whole time.',
+    lines:[{text:'The door opens.',cls:'red',sfx:'red'},{text:'You didn\'t do that.',cls:'dim',delay:700},
+      {text:'...',cls:'dim',delay:1100},{text:'Darkness beyond it.',cls:'',delay:500},
+      {text:'And inside the darkness:',cls:'dim',delay:700},{text:'a room.',cls:'',delay:500},
+      {text:'and inside the room: a door.',cls:'accent',delay:700}]},
+
+  ending_mirror:{isEnding:true,id:'E_MIRROR',title:'WHICH SIDE ARE YOU ON',type:'bad',
+    body:'You stepped through. The other you stepped through.\nNow you\'re on the other side of a door.\nLooking in.',
+    lines:[{text:'You step through.',cls:''},{text:'...',cls:'dim',delay:900},
+      {text:'There\'s a door here.',cls:'dim',delay:600},{text:'On the other side:',cls:'',delay:500},
+      {text:'someone approaching.',cls:'red',delay:700,sfx:'heartbeat'}]},
+
+  ending_accept:{isEnding:true,id:'E_ACCEPT',title:'YOU ALREADY KNEW',type:'good',
+    body:'The door was never locked.\nYou were.\nYou walk away. You don\'t need to open it anymore.',
+    lines:[{text:'You stop.',cls:''},{text:'You breathe.',cls:'dim',delay:700},
+      {text:'You already know what\'s behind it.',cls:'italic',delay:700,sfx:'heartbeat'},
+      {text:'You always did.',cls:'dim',delay:500},{text:'You leave.',cls:'',delay:700},
+      {text:'Not running. Walking.',cls:'dim',delay:500},
+      {text:'The door doesn\'t follow you this time.',cls:'accent',delay:700,sfx:'parts'}]},
+
+  ending_refuse:{isEnding:true,id:'E_REFUSE',title:'NOT TODAY',type:'neutral',
+    body:'You closed it. Whatever was on the other side gave up.\nSo did you.',
+    lines:[{text:'You hold the door closed.',cls:''},{text:'...',cls:'dim',delay:900},
+      {text:'The pulling stops.',cls:'dim',delay:700},{text:'Eventually.',cls:'',delay:900},
+      {text:'You let go.',cls:'dim',delay:700},{text:'Walk away.',cls:'',delay:500}]},
+
+  ending_hold:{isEnding:true,id:'E_HOLD',title:'YOU HELD IT',type:'good',
+    body:'You held the door closed until your arms gave out.\nWhen you finally fell back, it was locked.\nFrom your side.',
+    lines:[{text:'You push with everything.',cls:''},{text:'The resistance fights back.',cls:'dim',delay:600,sfx:'heartbeat'},
+      {text:'...',cls:'dim',delay:1300},{text:'It stops.',cls:'accent',delay:600,sfx:'parts'},
+      {text:'The door locks from your side.',cls:'',delay:500}]},
+
+  ending_blind:{isEnding:true,id:'E_BLIND',title:'RECKLESS',type:'bad',
+    body:'You walked through without looking.\nSome part of you never came back from that.',
+    lines:[{text:'You walk through without looking.',cls:''},{text:'...',cls:'dim',delay:1500},
+      {text:'Something is different now.',cls:'dim',delay:600},{text:'About you.',cls:'red',delay:500,sfx:'red'},
+      {text:'...different.',cls:'dim',delay:700}]},
+
+  ending_swap:{isEnding:true,id:'E_SWAP',title:'SOMETHING LEFT',type:'bad',
+    body:'When you opened your eyes, the door was closed.\nThe silence had a weight it didn\'t before.',
+    lines:[{text:'You open your eyes.',cls:''},{text:'The room is empty.',cls:'dim',delay:700},
+      {text:'You feel lighter.',cls:'dim',delay:700,sfx:'heartbeat'},{text:'Not in a good way.',cls:'red',delay:500}]},
+
+  ending_blind_safe:{isEnding:true,id:'E_BLIND_S',title:'SOME THINGS PASS',type:'neutral',
+    body:'You kept your eyes closed.\nWhatever it was passed through.\nYou sat there a long time before you felt safe opening them.',
+    lines:[{text:'You keep your eyes closed.',cls:''},{text:'The air movement stops.',cls:'dim',delay:900},
+      {text:'...',cls:'dim',delay:1300},{text:'Silence.',cls:'',delay:700},
+      {text:'The door is sealed shut.',cls:'accent',delay:500,sfx:'parts'}]},
+
+  ending_beyond:{isEnding:true,id:'E_BEYOND',title:'BEYOND THE DOOR',type:'bad',
+    body:'You went through. And came back.\nBut when you try to describe what was there, your mouth won\'t form the words.',
+    lines:[{text:'You push it open.',cls:'',sfx:'door'},{text:'You step through.',cls:'dim',delay:600},
+      {text:'...',cls:'dim',delay:2100},{text:'...',cls:'dim',delay:2200},
+      {text:'You\'re back.',cls:'red',delay:500,sfx:'red'},{text:'You don\'t remember much.',cls:'dim',delay:600}]},
+
+  ending_scream:{isEnding:true,id:'E_SCREAM',title:'IT ANSWERED',type:'bad',
+    body:'You screamed into the door.\nSomething screamed back.\nExactly. Your voice. Your fear. Reflected.',
+    lines:[{text:'You scream.',cls:'red',sfx:'red'},{text:'...',cls:'dim',delay:900},
+      {text:'The door screams back.',cls:'red',delay:500,sfx:'glitch'},
+      {text:'Your voice. Exactly.',cls:'',delay:600},{text:'But angrier.',cls:'dim',delay:600}]},
+
+  ending_corridor:{isEnding:true,id:'E_CORRIDOR',title:'THE CORRIDOR HAS NO END',type:'bad',
+    body:'You walked for a long time.\nThe door was always behind you.\nYou\'re still walking.',
+    lines:[{text:'You walk.',cls:''},{text:'...',cls:'dim',delay:1300},{text:'...',cls:'dim',delay:1400},
+      {text:'Still walking.',cls:'dim',delay:700},{text:'The corridor hasn\'t ended.',cls:'red',delay:500,sfx:'red'}]},
+
+  ending_watcher_follow:{isEnding:true,id:'E_WATCHER',title:'YOU FOLLOWED THE WATCHER',type:'purple',
+    body:'They walked through the door without opening it.\nYou tried to do the same.\nYou couldn\'t.\nBut you saw where they went.\nIt looked like home.',
+    lines:[{text:'You try to follow.',cls:'',sfx:'purple'},{text:'You can\'t pass through.',cls:'dim',delay:600},
+      {text:'Your hands press against the surface.',cls:'',delay:500},{text:'You watch them walk away.',cls:'purple',delay:600},
+      {text:'Into a light you recognize.',cls:'dim',delay:500},{text:'From somewhere. Somewhere old.',cls:'accent',delay:600,sfx:'parts'}]},
+
+  symbols_ending:{isEnding:true,id:'E_SYMBOLS',title:'YOU SPOKE THE SEQUENCE',type:'purple',
+    body:'𐌈 ⊗ ⟁ ⌖\nYou found all four symbols across four different rooms.\nYou spoke them aloud.\nThe door opened from both sides at once.\nRommel was watching.\nHe wasn\'t expecting that.',
+    lines:[{text:'𐌈 ⊗ ⟁ ⌖',cls:'accent',sfx:'parts'},{text:'...',cls:'dim',delay:1200},
+      {text:'The door trembles.',cls:'',delay:600,sfx:'glitch'},{text:'...',cls:'dim',delay:1000},
+      {text:'It opens.',cls:'glitch-text',delay:500,sfx:'door'},{text:'From both sides.',cls:'accent',delay:600},
+      {text:'At once.',cls:'dim',delay:400}]},
+
+  true_ending:{isEnding:true,id:'E_TRUE',title:'THE DOOR WAS ALWAYS OPEN',type:'true',
+    body:'You had the key the whole time.\nNot a physical key.\nYou stopped asking what was behind it.\nAnd the door stopped existing.\nJust like that.\n\n— R. Almoradie',
+    lines:[{text:'...you check your pocket.',cls:''},{text:'...',cls:'dim',delay:1100},
+      {text:'There\'s nothing there.',cls:'dim',delay:700},{text:'Of course not.',cls:'',delay:500},
+      {text:'...',cls:'dim',delay:1200},{text:'But then you understand.',cls:'accent',delay:900,sfx:'parts'},
+      {text:'The key was never the point.',cls:'',delay:700},{text:'You turn around.',cls:'dim',delay:700},
+      {text:'The door is gone.',cls:'glitch-text',delay:900,sfx:'glitch'},
+      {text:'There\'s just a room.',cls:'',delay:500},{text:'And a way out.',cls:'accent',delay:700,sfx:'parts'},
+      {text:'— Rommel Almoradie',cls:'dim',delay:1000}]},
+};
+
+// ══════════════════════════════════════════
+// KEYBOARD EASTER EGGS
+// ══════════════════════════════════════════
+let typeBuf='';
+document.addEventListener('keydown',e=>{
+  typeBuf+=e.key.toLowerCase();if(typeBuf.length>14)typeBuf=typeBuf.slice(-14);
+  if(typeBuf.includes('remember')){typeBuf='';triggerGlitch();
+    const t=document.getElementById('titleTagline');
+    if(t){t.textContent='i remember you too';
+      setTimeout(()=>t.textContent=MEM.runs===0?'something is behind it':'you came back',2400);}}
+  if(typeBuf.includes('forget')){typeBuf='';
+    if(confirm('Forget everything? This cannot be undone.')){clearMem();location.reload();}}
+  if(typeBuf.includes('dev')){typeBuf='';openDevConsole();}
+  if(typeBuf.includes('morse')&&MEM.runs>3){typeBuf='';
+    if(!MEM.symbolsFound.includes(1)){MEM.morseDecoded=true;saveData(MEM);collectSymbol(1,'morse');
+      triggerGlitch();const t=document.getElementById('titleTagline');
+      if(t){t.textContent='r-o-m-m-e-l. you decoded it.';
+        setTimeout(()=>t.textContent='you heard the name in the drone',2500);}}}
+  if(typeBuf.includes('rommel')){typeBuf='';triggerPurple();
+    const t=document.getElementById('titleTagline');
+    if(t){t.textContent='yes. that\'s me.';setTimeout(()=>t.textContent=MEM.runs===0?'something is behind it':'still here',2000);}}
+  if(typeBuf.includes('open')&&audioCtx&&audioOn){typeBuf='';playSfxDoorOpen();}
+  if(e.key==='Escape'&&document.getElementById('devConsole').classList.contains('show'))closeDevConsole();
+});
+
+
+// Touch swipe — swipe up to skip typing
+let tStartY=0;
+document.addEventListener('touchstart',e2=>{tStartY=e2.touches[0].clientY;},{passive:true});
+document.addEventListener('touchend',e2=>{
+  const dy=tStartY-e2.changedTouches[0].clientY;
+  if(dy>55&&isTyping)skipTyping=true;
+},{passive:true});
+
+// Idle title glitch
+let idleT;
+function resetIdle(){
+  clearTimeout(idleT);idleT=setTimeout(()=>{
+    const el=document.getElementById('titleText');if(!el||MEM.runs===0)return;
+    const g=['THE DOOR','THE D0OR','TH3 D00R','THE ????','R?M?EL DOOR','THE DOOR'];
+    let i=0;const iv=setInterval(()=>{el.textContent=g[i%g.length];i++;if(i>6){clearInterval(iv);el.textContent='THE DOOR';}},110);},10000);
+}
+['mousemove','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,resetIdle,{passive:true}));
+resetIdle();
+
+
+// ══════════════════════════════════════════
+// DREAD SYSTEM
+// ══════════════════════════════════════════
+function getDread(){return Math.min(1,MEM.runs/20);}
+function applyDread(){
+  const d=getDread();
+  // vignette tightens - use fixed body::after via style injection
+  let vigStyle=document.getElementById('vigStyle');
+  if(!vigStyle){vigStyle=document.createElement('style');vigStyle.id='vigStyle';document.head.appendChild(vigStyle);}
+  const vSize=Math.max(7,25-d*18);
+  vigStyle.textContent=`body::after{background:radial-gradient(ellipse at 50% 50%,transparent ${vSize}%,rgba(0,0,0,.95) 100%)!important;}`;
+  // dread overlay red tint deepens
+  const de=document.getElementById('dreadOverlay');
+  if(de){de.style.background=`radial-gradient(ellipse at 50% 100%,rgba(${Math.round(60+d*40)},5,5,${(d*.28).toFixed(3)}),transparent 70%)`;}
+  // door SVG ages
+  const ds=document.getElementById('doorSvg');
+  if(ds)ds.style.filter=`drop-shadow(0 0 ${(4+d*16).toFixed(0)}px rgba(${Math.round(180+d*40)},${Math.round(80-d*50)},${Math.round(30-d*20)},${(.05+d*.2).toFixed(2)}))`;
+  // grain thickens
+  const gr=document.getElementById('grainLayer')||document.querySelector('body::before');
+  // title color shifts red
+  const tt=document.getElementById('titleText');
+  if(tt&&d>.3){const r=Math.round(200+d*55),g=Math.round(192-d*80),b=Math.round(176-d*100);
+    tt.style.color=`rgb(${r},${g},${b})`;tt.style.textShadow=`0 0 40px rgba(${r},${g>>1},${b>>1},${(d*.4).toFixed(2)})`;}
+}
+
+// ══════════════════════════════════════════
+// LOCATION VISUAL THEMES
+// ══════════════════════════════════════════
+const LOC_THEMES2={
+  'THE ROOM':{tint:'rgba(0,0,0,0)',particles:'#c8a060',mirror:false,audio:'room'},
+  'THE CORRIDOR':{tint:'rgba(20,30,60,0.09)',particles:'#4060c0',mirror:false,audio:'corridor'},
+  'THE MIRROR ROOM':{tint:'rgba(40,20,60,0.1)',particles:'#8840b0',mirror:true,audio:'mirror'},
+  'THE BASEMENT':{tint:'rgba(60,10,10,0.13)',particles:'#b82828',mirror:false,audio:'basement'},
+};
+function applyLocTheme(loc){
+  const th=LOC_THEMES2[loc]||LOC_THEMES2['THE ROOM'];
+  const lo=document.getElementById('locOverlay');if(lo)lo.style.background=th.tint;
+  const md=document.getElementById('mirrorDistort');if(md)md.style.opacity=th.mirror?'1':'0';
+  spawnParts(window.innerWidth/2,window.innerHeight/2,th.particles,7,1.2);
+  setAudioTheme2(th.audio);
+  // update fog target color
+  const cols={'THE ROOM':{r:200,g:160,b:100},'THE CORRIDOR':{r:60,g:80,b:140},
+    'THE MIRROR ROOM':{r:120,g:70,b:160},'THE BASEMENT':{r:140,g:30,b:30}};
+  if(typeof targetFogColor!=='undefined')Object.assign(targetFogColor,cols[loc]||cols['THE ROOM']);
+}
+
+// ══════════════════════════════════════════
+// LOCATION AUDIO THEMES
+// ══════════════════════════════════════════
+let curAudioTheme='room';
+function setAudioTheme2(theme){
+  if(!actx||!audioOn||theme===curAudioTheme)return;
+  curAudioTheme=theme;
+  const cfg={room:{f:null,type:'sine'},corridor:{f:320,type:'sine'},
+    mirror:{f:[440,554,660],type:'sine'},basement:{f:28,type:'sawtooth'}};
+  const c=cfg[theme];if(!c||!c.f)return;
+  const freqs=Array.isArray(c.f)?c.f:[c.f];
+  freqs.forEach((f,i)=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type=c.type;o.frequency.value=f;
+    g.gain.setValueAtTime(0,actx.currentTime+i*.15);
+    g.gain.linearRampToValueAtTime(theme==='basement'?.07:.03,actx.currentTime+i*.15+.4);
+    g.gain.linearRampToValueAtTime(0,actx.currentTime+i*.15+2.5);
+    o.connect(g);g.connect(masterGain);
+    o.start(actx.currentTime+i*.15);o.stop(actx.currentTime+i*.15+3);
+  });
+}
+
+// ══════════════════════════════════════════
+// TIME-BASED EVENTS
+// ══════════════════════════════════════════
+function checkTimeEvents(){
+  const now=new Date(),h=now.getHours();
+  const away=MEM.lastVisitTime?(Date.now()-MEM.lastVisitTime):0;
+  const el=document.getElementById('timeGreeting');
+  let msg=null;
+  if(away>82800000&&away<90000000&&MEM.runs>0)msg='you came back at exactly the same time. i noticed.';
+  else if(away>604800000&&MEM.runs>0)msg='a week. the door has been waiting.';
+  else if((h===0||h===1)&&MEM.runs>0)msg="it's past midnight. you shouldn't be opening doors right now.";
+  else if(h>=4&&h<6&&MEM.runs>0)msg="you're still here at dawn. or you're starting again.";
+  if(msg&&el){el.textContent=msg;el.style.opacity='.7';el.style.color='var(--accent)';
+    el.style.fontFamily='Share Tech Mono,monospace';el.style.fontSize='clamp(.46rem,.54rem,2.2vw)';
+    el.style.letterSpacing='2px';el.style.fontStyle='italic';el.style.minHeight='16px';}
+  if(MEM.lastVisitTime){
+    const diff=Math.abs((Date.now()%86400000)-(MEM.lastVisitTime%86400000));
+    if(diff<1800000&&MEM.runs>1)setTimeout(()=>triggerGlitch(),2000);}
+  MEM.lastVisitTime=Date.now();if(!MEM.runHistory)MEM.runHistory=[];saveData(MEM);
+}
+
+// ══════════════════════════════════════════
+// DIALOGUE MEMORY
+// ══════════════════════════════════════════
+function getMemoryLine(){
+  if(!MEM.lastChoice||MEM.runs<2)return null;
+  if(MEM.lastChoice.toLowerCase().includes('knock'))return"You knocked last time too. It's becoming a habit.";
+  if(MEM.lastChoice.toLowerCase().includes('run')||MEM.lastChoice.toLowerCase().includes('run'))return"You ran last time. You came back anyway.";
+  if(MEM.lastChoice.toLowerCase().includes('touch'))return"Your fingerprints are still on the door from last time.";
+  if(MEM.lastEndingId==='E_RUN')return"You ran last time. The door waited.";
+  if(MEM.lastEndingId==='E_MIRROR')return"You saw yourself last time. Do you remember what it mouthed?";
+  return`Last time: "${MEM.lastChoice.substring(0,36)}..."`;
+}
+
+// ══════════════════════════════════════════
+// COMPLETION STATE
+// ══════════════════════════════════════════
+function checkCompletion(){
+  if(MEM.endingsFound.length>=16&&!MEM.completionShown){
+    MEM.completionShown=true;saveData(MEM);
+    setTimeout(()=>{
+      playSfxTrueEnding();spawnParts(window.innerWidth/2,window.innerHeight/2,'#00ffcc',60,4);
+      // Show completion overlay
+      let co=document.getElementById('completionOverlay');
+      if(!co){co=document.createElement('div');co.id='completionOverlay';
+        co.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.98);z-index:950;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:24px;text-align:center;';
+        co.innerHTML=`<div style="font-family:Share Tech Mono,monospace;font-size:clamp(1rem,4vw,1.5rem);letter-spacing:4px;color:var(--glitch);">ALL DOORS OPENED</div>
+        <div style="font-size:clamp(.76rem,.88rem,3.5vw);line-height:2;color:var(--dim);max-width:400px;font-style:italic;">You found all 16 endings.\n\nThe door is gone now. You don't need it.\n\nI built it because I had something I couldn't say directly. You found all the ways around it. That means something.\n\nThank you for playing.</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:clamp(.5rem,.6rem,2.3vw);letter-spacing:3px;color:var(--accent);opacity:.6;">— ROMMEL ALMORADIE</div>
+        <button onclick="this.parentElement.style.display='none'" style="background:none;border:1px solid #1a1a1a;color:var(--dim);font-family:Share Tech Mono,monospace;font-size:.56rem;letter-spacing:2px;padding:8px 20px;cursor:pointer;margin-top:8px;">CONTINUE</button>`;
+        document.body.appendChild(co);}
+      co.style.display='flex';
+    },2000);}
+  if(MEM.endingsFound.length>=16){
+    const dw=document.querySelector('.splash-door-wrap');if(dw)dw.style.opacity='0';
+    let cm=document.getElementById('completionMsg');
+    if(!cm){cm=document.createElement('div');cm.id='completionMsg';cm.style.cssText='font-family:Share Tech Mono,monospace;font-size:clamp(.46rem,.54rem,2.2vw);color:var(--glitch);letter-spacing:2px;min-height:16px;text-align:center;opacity:.8;';
+      document.getElementById('startBtn').insertAdjacentElement('afterend',cm);}
+    cm.textContent='all doors opened. the room is finally empty.';}
+}
+
+
+// ══════════════════════════════════════════
+// RUN HISTORY
+// ══════════════════════════════════════════
+const ENDING_TITLE_MAP={
+  E_LEAVE:'CLOSED',E_RUN:'RUNNING',E_OPEN_N:'ORDINARY',E_OPEN_L:'SOMEONE THERE',
+  E_OPEN_D:'WHAT OPENED IT',E_MIRROR:'WHICH SIDE',E_ACCEPT:'KNEW',E_REFUSE:'NOT TODAY',
+  E_HOLD:'HELD IT',E_BLIND:'RECKLESS',E_SWAP:'SOMETHING LEFT',E_SCREAM:'ANSWERED',
+  E_BEYOND:'BEYOND',E_WATCHER:'WATCHER',E_CORRIDOR:'NO END',E_SYMBOLS:'SEQUENCE',E_TRUE:'TRUE ENDING',
+};
+const ENDING_TYPE_MAP={
+  E_LEAVE:'neutral',E_RUN:'neutral',E_OPEN_N:'neutral',E_OPEN_L:'#5a9040',
+  E_OPEN_D:'var(--red)',E_MIRROR:'var(--red)',E_ACCEPT:'#5a9040',E_REFUSE:'neutral',
+  E_HOLD:'#5a9040',E_BLIND:'var(--red)',E_SWAP:'var(--red)',E_SCREAM:'var(--red)',
+  E_BEYOND:'var(--purple)',E_WATCHER:'var(--purple)',E_CORRIDOR:'var(--red)',
+  E_SYMBOLS:'var(--purple)',E_TRUE:'var(--glitch)',
+};
+
+function recordRunHistory(endId,rStats,ms){
+  if(!MEM.runHistory)MEM.runHistory=[];
+  MEM.runHistory.unshift({run:MEM.runs,ending:endId,choices:rStats.choices,
+    dangerous:rStats.dangerous,safe:rStats.safe,secrets:rStats.secrets,
+    timeMs:ms,location:currentLocation});
+  if(MEM.runHistory.length>25)MEM.runHistory.pop();
+}
+
+function openHistory(){
+  const panel=document.getElementById('historyPanel');
+  const rows=document.getElementById('historyRows');
+  if(!rows)return;
+  rows.innerHTML='';
+  if(!MEM.runHistory||MEM.runHistory.length===0){
+    rows.innerHTML='<div style="padding:20px;font-family:Share Tech Mono,monospace;font-size:.56rem;color:var(--dim);text-align:center;">No runs recorded yet.</div>';
+  }else{
+    MEM.runHistory.forEach(h=>{
+      const t=Math.round((h.timeMs||0)/1000);
+      const col=ENDING_TYPE_MAP[h.ending]||'var(--dim)';
+      const row=document.createElement('div');
+      row.style.cssText='display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:9px 16px;border-bottom:1px solid #0e0e0e;';
+      row.innerHTML=`
+        <div style="font-family:Share Tech Mono,monospace;font-size:.52rem;color:var(--dim);">#${h.run}</div>
+        <div style="font-size:.74rem;color:#4a4840;line-height:1.6;">${h.choices} choices · ⚠${h.dangerous} safe:${h.safe}<br>${h.location||'THE ROOM'} · ${t}s</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:.46rem;color:${col};text-align:right;">${(ENDING_TITLE_MAP[h.ending]||h.ending||'—').substring(0,16)}</div>`;
+      rows.appendChild(row);
+    });
+  }
+  panel.style.display='flex';
+}
+
+// ══════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════
+(function boot(){
+  resizeBg();resizePt();
+  window.addEventListener('resize',()=>{resizeBg();resizePt();});
+  drawBg();drawParts();animCursor();
+  showScreen('splashScreen');
+  applyDread();
+  initTitle();
+  // Route to correct locations
+  Object.assign(SCENES,{
+    the_mirror_room:{...SCENES.the_mirror_room},
+    the_basement:{...SCENES.the_basement},
+  });
+  // Basement accessible from step_back on high runs
+  if(MEM.runs>=6&&SCENES.step_back){
+    const orig=SCENES.step_back.choices;
+    SCENES.step_back.choices=()=>{
+      const o=orig();
+      if(!o.find(c=>c.next==='the_basement'))
+        o.push({text:'There\'s a staircase you never noticed.',next:'the_basement',type:'secret'});
+      if(!o.find(c=>c.next==='the_mirror_room'))
+        o.push({text:'The back wall is a mirror.',next:'the_mirror_room',type:'danger'});
+      return o;};
+  }
+})();
+</script>
+</body>
+</html>
